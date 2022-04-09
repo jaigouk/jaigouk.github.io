@@ -1,11 +1,1 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-         "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
- <head>
-  <title>404 Not Found</title>
- </head>
- <body>
-  <h1>404 Not Found</h1>
- </body>
-</html>
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="//jaigouk.com/sitemap.xsl"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><sitemap><loc>http://jaigouk.com/sitemap-pages.xml</loc><lastmod>2022-04-07T17:26:01.674Z</lastmod></sitemap><sitemap><loc>http://jaigouk.com/sitemap-posts.xml</loc><lastmod>2022-04-07T20:21:29.684Z</lastmod></sitemap><sitemap><loc>http://jaigouk.com/sitemap-authors.xml</loc><lastmod>2022-04-07T22:03:41.148Z</lastmod></sitemap><sitemap><loc>http://jaigouk.com/sitemap-tags.xml</loc><lastmod>2021-04-02T23:06:53.000Z</lastmod></sitemap></sitemapindex>

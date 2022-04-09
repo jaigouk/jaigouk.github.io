@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-    <title>Jaigouk.Kim</title>
+    <title>Message queues</title>
 
     <meta name="HandheldFriendly" content="True" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -25,31 +25,39 @@
         /* endinject */
     </style>
 
-    <meta name="description" content="Let the ideas flow." />
+    <meta name="description" content="Nats vs Kafka vs etc. comparing message queues" />
     <link rel="icon" href="/favicon.png" type="image/png" />
-    <link rel="canonical" href="http://jaigouk.com/" />
+    <link rel="canonical" href="http://jaigouk.com/message-queues/" />
     <meta name="referrer" content="no-referrer" />
-    <link rel="next" href="http://jaigouk.com/page/2/" />
+    <link rel="amphtml" href="http://jaigouk.com/message-queues/amp/" />
     
     <meta property="og:site_name" content="Jaigouk.Kim" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Jaigouk.Kim" />
-    <meta property="og:description" content="Let the ideas flow." />
-    <meta property="og:url" content="http://jaigouk.com/" />
-    <meta property="og:image" content="https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="Message queues" />
+    <meta property="og:description" content="Nats vs Kafka vs etc. comparing message queues" />
+    <meta property="og:url" content="http://jaigouk.com/message-queues/" />
+    <meta property="og:image" content="https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg" />
+    <meta property="article:published_time" content="2018-09-02T00:25:29.000Z" />
+    <meta property="article:modified_time" content="2018-09-02T11:08:51.000Z" />
+    <meta property="article:tag" content="Architecture" />
+    
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Jaigouk.Kim" />
-    <meta name="twitter:description" content="Let the ideas flow." />
-    <meta name="twitter:url" content="http://jaigouk.com/" />
-    <meta name="twitter:image" content="https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg" />
+    <meta name="twitter:title" content="Message queues" />
+    <meta name="twitter:description" content="Nats vs Kafka vs etc. comparing message queues" />
+    <meta name="twitter:url" content="http://jaigouk.com/message-queues/" />
+    <meta name="twitter:image" content="https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg" />
+    <meta name="twitter:label1" content="Written by" />
+    <meta name="twitter:data1" content="Jaigouk Kim" />
+    <meta name="twitter:label2" content="Filed under" />
+    <meta name="twitter:data2" content="Architecture" />
     <meta name="twitter:site" content="@jaigouk" />
-    <meta property="og:image:width" content="1920" />
-    <meta property="og:image:height" content="1480" />
+    <meta property="og:image:width" content="5312" />
+    <meta property="og:image:height" content="2988" />
     
     <script type="application/ld+json">
 {
     "@context": "https://schema.org",
-    "@type": "WebSite",
+    "@type": "Article",
     "publisher": {
         "@type": "Organization",
         "name": "Jaigouk.Kim",
@@ -59,18 +67,34 @@
             "url": "https://files.jaigouk.com/2018/08/jaigouk-blog-logo.png"
         }
     },
-    "url": "http://jaigouk.com/",
+    "author": {
+        "@type": "Person",
+        "name": "Jaigouk Kim",
+        "image": {
+            "@type": "ImageObject",
+            "url": "//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s=250&d=mm&r=x",
+            "width": 250,
+            "height": 250
+        },
+        "url": "http://jaigouk.com/author/jaigouk/",
+        "sameAs": []
+    },
+    "headline": "Message queues",
+    "url": "http://jaigouk.com/message-queues/",
+    "datePublished": "2018-09-02T00:25:29.000Z",
+    "dateModified": "2018-09-02T11:08:51.000Z",
     "image": {
         "@type": "ImageObject",
-        "url": "https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg",
-        "width": 1920,
-        "height": 1480
+        "url": "https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg",
+        "width": 5312,
+        "height": 2988
     },
+    "keywords": "Architecture",
+    "description": "Nats vs Kafka vs etc. comparing message queues",
     "mainEntityOfPage": {
         "@type": "WebPage",
         "@id": "http://jaigouk.com/"
-    },
-    "description": "Let the ideas flow."
+    }
 }
     </script>
 
@@ -143,7 +167,7 @@
     <script defer src="/public/cards.min.js?v=459025735b"></script><style>:root {--ghost-accent-color: #FF1A75;}</style>
     <link rel="stylesheet" type="text/css" href="/public/cards.min.css?v=459025735b">
 </head>
-<body class="home-template ">
+<body class="post-template tag-architecture ">
 
     
 <header class="bloginfo headroom">
@@ -155,7 +179,7 @@
 	<nav class="main">
 		
 <ul class="nav-items">
-		<li class="nav-item nav-home nav-current">
+		<li class="nav-item nav-home">
 			<a href="http://jaigouk.com/">Home</a>
 		</li>
 		<li class="nav-item nav-about">
@@ -205,7 +229,7 @@
 <section class="widget navigation">
 	
 <ul class="nav-items">
-		<li class="nav-item nav-home nav-current">
+		<li class="nav-item nav-home">
 			<a href="http://jaigouk.com/">Home</a>
 		</li>
 		<li class="nav-item nav-about">
@@ -224,7 +248,62 @@
 
 </section>
 	
+        <section class="widget authorprofile">
+            <div class="info">
+                <a href="/author/jaigouk/" class="profile gravatar">
+                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim" data-no-retina="true">
+                </a>
+                <div class="meta">
+                    <span class="title">Author</span>
+                    <h3>
+                        <a href="/author/jaigouk/" rel="author">Jaigouk Kim</a>
+                    </h3>
+                </div>
+            </div>
+        </section>
 	
+	<section class="widget socialshare">
+		<h3 class="widget-title">Share</h3>
+		<hr>
+		<div class="options">
+			<a href="http://twitter.com/share?text=Message%20queues&amp;url=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;" class="sharebutton twitter">
+				<svg class="svg-icon svg-icon-fill svg-icon-twitter">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#twitter"></use>
+				</svg>
+				<span>Twitter</span>
+			</a>
+			<a href="https://www.facebook.com/sharer/sharer.php?u=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;" class="sharebutton facebook">
+				<svg class="svg-icon svg-icon-fill svg-icon-facebook">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#facebook"></use>
+				</svg>
+				<span>Facebook</span>
+			</a>
+			<a href="http://www.reddit.com/submit?url=http://jaigouk.com/message-queues/&amp;title=Message%20queues" onclick="window.open(this.href, 'reddit-share', 'width=490,height=530');return false;" class="sharebutton reddit">
+				<svg class="svg-icon svg-icon-fill svg-icon-reddit">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#reddit"></use>
+				</svg>
+				<span>Reddit</span>
+			</a>
+			<a href="http://pinterest.com/pin/create/button/?url=http://jaigouk.com/message-queues/&amp;description=Message%20queues" onclick="window.open(this.href, 'pinterest-share', 'width=490,height=530');return false;" class="sharebutton pinterest">
+				<svg class="svg-icon svg-icon-fill svg-icon-pinterest">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#pinterest"></use>
+				</svg>
+				<span>Pinterest</span>
+			</a>
+			<a href="http://www.linkedin.com/shareArticle?mini=true&amp;url=http://jaigouk.com/message-queues/&amp;title=Message%20queues" onclick="window.open(this.href, 'linkedin-share', 'width=490,height=530');return false;" class="sharebutton linkedin">
+				<svg class="svg-icon svg-icon-fill svg-icon-linkedin">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#linkedin"></use>
+				</svg>
+				<span>LinkedIn</span>
+			</a>
+			<a href="mailto:?body=http://jaigouk.com/message-queues/&subject=Message%20queues" class="sharebutton email">
+				<svg class="svg-icon svg-icon-fill svg-icon-gmail">
+					<use xlink:href="/assets/svg/icons.svg?v=459025735b#gmail"></use>
+				</svg>
+				<span>Email</span>
+			</a>
+		</div>
+	</section>
 	
 	
 <section class="widget">
@@ -259,17 +338,19 @@
     <main class="pagewrapper">
 
         
-	
-	<section class="cover front" data-height="100">
-		<div class="background" style="background-image:url('https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg');"></div>
+
 		
+    <section class="cover" data-height="100" data-opacity="0.3">
+        <div class="background" style="background-image:url('https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg');"></div>
+        
 <header class="bloginfo transparent">
 	<div class="title">
+				<a href="http://jaigouk.com"><img src="https://files.jaigouk.com/2018/08/jaigouk-blog-logo.png" class="retina" alt="Jaigouk.Kim"></a>
 	</div>
 	<nav class="main light">
 		
 <ul class="nav-items">
-		<li class="nav-item nav-home nav-current">
+		<li class="nav-item nav-home">
 			<a href="http://jaigouk.com/">Home</a>
 		</li>
 		<li class="nav-item nav-about">
@@ -297,159 +378,150 @@
 		</ul>
 	</nav>
 </header>
-		<section class="blogtitle wrapper">
-				<a href="http://jaigouk.com" class="logo">
-					<img src="https://files.jaigouk.com/2018/08/jaigouk-blog-logo.png" class="retina" alt="Jaigouk.Kim">
-					</a>
-				<p class="description">Let the ideas flow. </p>
-			<hr>
+        <section class="postitem posttitle center wrapper">
+            <ul class="meta">
+                    <li class="category Architecture">
+                        <a href="/tag/architecture/">Architecture</a>
+                    </li>
+                <li class="date">
+                    <a href="/message-queues/">
+                        <time datetime="2018-09-02" >September 2nd, 2018</time>
+                    </a>
+                </li>
+            </ul>
+            <h1 class="title">
+                Message queues
+            </h1>
+                <p class="excerpt">
+                    Nats vs Kafka vs etc. comparing message queues
+                </p>
+        </section>
+        <div class="mouse">
+            <div class="scroll"></div>
+        </div>
+    </section>
+
+		<section class="postcontents wrapper">
+			<!--kg-card-begin: markdown--><p>Message queues are the backbone of your services.</p>
+<p>If you have gone through MVP and passed the monolithic situation, you are probably thinking about something has to be done. There are lots of problems on the table. Especially, your organization has grown more than 15 devs, then it's possible that they want to use python for ML, golang for infrastructure, elixir for graphql api endpoint, etc. There are various ways to make it happen. grpc can be 1 possibility. Or, you can use message ques. After booming of mobile apps and IOT, the server side should be scalable and maintainable. And it's true that you can't just stick with 1 programming language and treat it as a silver bullet. Docker was the answer to that chaos and kubernetes is the winning orchestration tool. still, you need to figure out how to break things down and put them in kubernetes. Openfaas is using Nats-streaming and there are <a href="https://docs.openfaas.com/reference/triggers/">multiple options(kafka, aws sns, CloudEvents, RabbitMQ)</a> to trigger your serverless functions.</p>
+<p>While investigating message queue options out there, I found that <a href="https://www.confluent.io/blog/publishing-apache-kafka-new-york-times/">Kafka is used at NYT</a> and usually have more scores on HN.</p>
+<!--kg-card-end: markdown--><!--kg-card-begin: html--><script async class="speakerdeck-embed" data-id="84923a1b878a4b34aec2ff4f923a7ef2" data-ratio="1.77777777777778" src="//speakerdeck.com/assets/embed.js"></script><!--kg-card-end: html--><!--kg-card-begin: markdown--><p>I found that openfaas is a good example for using Nats Streaming. FAQ doc says it supports memory or data store for messages.</p>
+<p><img src="https://files.jaigouk.com/2018/09/Screen-Shot-2018-09-01-at-15.18.20.png" alt="Screen-Shot-2018-09-01-at-15.18.20" loading="lazy"></p>
+<p>And openfaas is using in memory store for messages. the following snippet is from openfaas' <a href="https://github.com/openfaas/faas/blob/master/docker-compose.yml#L76">docker-compose.yml</a> file. you can find kubernetes config from <a href="https://github.com/openfaas/faas-netes/blob/master/yaml/nats-dep.yml">here</a></p>
+<pre><code class="language-yaml">nats:
+    image: nats-streaming:0.6.0
+    # Uncomment the following port mappings if you wish to expose the
+    # NATS client and/or management ports
+    # ports:
+    #     - 4222:4222
+    #     - 8222:8222
+    command: &quot;--store memory --cluster_id faas-cluster&quot;
+    networks:
+        - functions
+    deploy:
+        resources:
+            limits:
+                memory: 125M
+            reservations:
+                memory: 50M
+        placement:
+            constraints:
+                - 'node.platform.os == linux'
+</code></pre>
+<p>I wanted to &quot;replay&quot; messages if something goes wrong. and then I found this comment from this <a href="https://github.com/openfaas/nats-queue-worker/pull/17#issuecomment-377000157">PR in nats-queue-worker</a></p>
+<blockquote>
+<p>If you use a NATS Streaming server with memory store, it is true that if the server is restarted, since no state is being restored, the previously &quot;connected&quot; clients will stop receiving messages. Publishers would fail too since the server would reject published messages for unknown client IDs.<br>
+The streaming server and streaming clients communicate through some inboxes. When the Streaming server is restarted, since it lost that knowledge, it can't communicate with existing clients. Moreover, even internal subjects used to communicate between the server and its clients contain a unique id that won't be the same after the restart).</p>
+</blockquote>
+<blockquote>
+<p>Note: If the NATS Streaming server connects to a non-embedded NATS Server, then if the NATS Server itself is restarted, that is fine, the client library's use of the underlying NATS connection will reconnect and everything would work fine (some timeout may occur for the operations that were inflight when the NATS server was restarted). This is because the Streaming server would still be running and its state maintained, so the communication can continue.</p>
+</blockquote>
+<p>Now, I am curious if I change openfaas' nats-streaming config with PV like <a href="https://github.com/canhnt/k8s-nats-streaming/blob/master/charts/nats-streaming-ft/templates/pv.yaml">this</a>, then will openfaas fetch the previous messages even though the streaming server is down or nats-queue-worker is restarted? I will play with it and write the following up article.</p>
+<!--kg-card-end: markdown-->
 		</section>
-		<div class="mouse">
-			<div class="scroll"></div>
+
+		
+<section class="postbottom wrapper">
+    <div class="info">
+        <div class="tags">
+                <a class="tag Architecture" href="/tag/architecture/">Architecture</a>
+        </div>
+        <div class="categories">
+                <a class="category Architecture" href="/tag/architecture/">Architecture</a>
+        </div>
+    </div>
+    <div class="shareoptions">
+        <a href="http://jaigouk.com/message-queues/" class="permalink">Permalink: http://jaigouk.com/message-queues/</a>
+        <ul class="sharebuttons">
+            <li>Share:</li>
+            <li>
+                <a href="http://twitter.com/share?text=Message%20queues&amp;url=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;" class="socialdark twitter" aria-label="Twitter">
+                    <svg class="svg-icon svg-icon-fill svg-icon-twitter">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#twitter"></use>
+                    </svg>
+                </a>
+            </li>
+            <li>
+                <a href="https://www.facebook.com/sharer/sharer.php?u=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;" class="socialdark facebook" aria-label="Facebook">
+                    <svg class="svg-icon svg-icon-fill svg-icon-facebook">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#facebook"></use>
+                    </svg>
+                </a>
+            </li>
+            <li>
+                <a href="http://www.linkedin.com/shareArticle?mini=true&amp;url=http://jaigouk.com/message-queues/&amp;title=Message%20queues" onclick="window.open(this.href, 'linkedin-share', 'width=490,height=530');return false;" class="socialdark linkedin" aria-label="LinkedIn">
+                    <svg class="svg-icon svg-icon-fill svg-icon-linkedin">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#linkedin"></use>
+                    </svg>
+                </a>
+            </li>
+            <li>
+                <a href="mailto:?body=http://jaigouk.com/message-queues/" class="socialdark email" aria-label="Email">
+                    <svg class="svg-icon svg-icon-fill svg-icon-gmail">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#gmail"></use>
+                    </svg>
+                </a>
+            </li>
+        </ul>
+    </div>
+</section>
+
+		
+    <section class="widget authorprofile authorprofile_avatar">
+        <div class="wrapper">
+            <div class="info">
+                    <a href="/author/jaigouk/" class="profile gravatar">
+                        <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
+                    </a>
+                <div class="meta">
+                    <span class="title">Author</span>
+                    <h3>
+                        <a href="/author/jaigouk/">Jaigouk Kim</a>
+                    </h3>
+                </div>
+            </div>
+            <ul class="authorsocial">
+            </ul>
+        </div>
+    </section>
+
+		
+<section class="comments" data-page-url="http://jaigouk.com/message-queues/" data-page-id="ghost-5b8ab5ebbe3831002481ad40">
+	<section id="comments" class="commentheader gotocomments">
+		<div class="wrapper">
+			<svg class="svg-icon svg-icon-stroke svg-icon-message-square">
+				<use xlink:href="/assets/svg/icons.svg?v=459025735b#message-square"></use>
+			</svg>
+			<span class="commenttitle" data-locale-comments="Comments">View Comments</span>
 		</div>
 	</section>
-
-	
-<section class="postlist">
-			
-<article class="postitem post tag-tools first format-standard">
-    <div class="wrapper">
-        <ul class="meta">
-                <li class="category tools">
-                    <a href="/tag/tools/">tools</a>
-                </li>
-            <li class="date">
-                <a href="/deploying-harbor/">
-                    <time datetime="2021-04-03">April 3rd, 2021</time>
-                </a>
-            </li>
-        </ul>
-        <h2 class="title">
-            <a href="/deploying-harbor/">Deploying harbor</a>
-        </h2>
-        <p class="excerpt">
-                Deploying harbor arm64 registry to raspberry pi k3s cluster
-        </p>
-            <a href="/author/jaigouk/" class="author">
-                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
-                Jaigouk Kim
-            </a>
-    </div>
-</article>
-			
-<article class="postitem post tag-life  format-standard">
-    <div class="wrapper">
-        <ul class="meta">
-                <li class="category life">
-                    <a href="/tag/life/">life</a>
-                </li>
-            <li class="date">
-                <a href="/work-env-in-covoid19-erra/">
-                    <time datetime="2021-03-23">March 23rd, 2021</time>
-                </a>
-            </li>
-        </ul>
-        <h2 class="title">
-            <a href="/work-env-in-covoid19-erra/">work env in covoid19 erra</a>
-        </h2>
-        <p class="excerpt">
-                In these days, I stay at home most of the time and still I wish to change atmosphere, so I move room to room. When I do that, I use my android tablet.&hellip;
-        </p>
-            <a href="/author/jaigouk/" class="author">
-                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
-                Jaigouk Kim
-            </a>
-    </div>
-</article>
-			
-<article class="postitem post tag-architecture  format-standard">
-    <div class="wrapper">
-        <ul class="meta">
-                <li class="category Architecture">
-                    <a href="/tag/architecture/">Architecture</a>
-                </li>
-            <li class="date">
-                <a href="/istio/">
-                    <time datetime="2021-03-23">March 23rd, 2021</time>
-                </a>
-            </li>
-        </ul>
-        <h2 class="title">
-            <a href="/istio/">istio</a>
-        </h2>
-        <p class="excerpt">
-                Istio service mesh on k3s rpi 4 cluster
-        </p>
-            <a href="/author/jaigouk/" class="author">
-                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
-                Jaigouk Kim
-            </a>
-    </div>
-</article>
-			
-<article class="postitem post no-image  format-standard">
-    <div class="wrapper">
-        <ul class="meta">
-            <li class="date">
-                <a href="/switching-between-git-profiles/">
-                    <time datetime="2019-03-02">March 2nd, 2019</time>
-                </a>
-            </li>
-        </ul>
-        <h2 class="title">
-            <a href="/switching-between-git-profiles/">Switching between git profiles</a>
-        </h2>
-        <p class="excerpt">
-                Maintaining multiple profiles are pain in the ass. Sometimes, it's easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that. You can automate switching users based on directory.  For zsh,  precmd_functions=(switch_git_user) switch_git_user() {   if [[ $&hellip;
-        </p>
-            <a href="/author/jaigouk/" class="author">
-                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
-                Jaigouk Kim
-            </a>
-    </div>
-</article>
-			
-<article class="postitem post tag-ideas tag-architecture  format-standard">
-    <div class="wrapper">
-        <ul class="meta">
-                <li class="category ideas">
-                    <a href="/tag/ideas/">ideas</a>
-                </li>
-            <li class="date">
-                <a href="/serverless-edge-computing/">
-                    <time datetime="2018-11-27">November 27th, 2018</time>
-                </a>
-            </li>
-        </ul>
-        <h2 class="title">
-            <a href="/serverless-edge-computing/">Serverless Edge Computing</a>
-        </h2>
-        <p class="excerpt">
-                no server. but network.
-        </p>
-            <a href="/author/jaigouk/" class="author">
-                    <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" alt="Jaigouk Kim">
-                Jaigouk Kim
-            </a>
-    </div>
-</article>
-	
-<nav class="pagination">
-	<div class="wrapper">
-			<a href="/page/2/" class="button rounded light previous" aria-label="Older Posts">
-				<span class="main">
-					Older Posts
-				</span>
-				<span class="sub">
-					<svg class="svg-icon svg-icon-stroke svg-icon-chevron-right">
-						<use xlink:href="/assets/svg/icons.svg?v=459025735b#chevron-right"></use>
-					</svg>
-				</span>
-			</a>
-	</div>
-</nav>
-
+	<section class="commentitems">
+		<div class="wrapper">
+			<div id="disqus_thread"></div>
+		</div>
+	</section>
 </section>
+
 
 
         
@@ -504,6 +576,99 @@
 
     </main>
 
+        
+    <footer class="postinfo">
+        <div class="default default--visible">
+            <section class="socialoptions">
+                <ul class="sharebuttons">
+                    <li>
+                        <a href="http://twitter.com/share?text=Message%20queues&amp;url=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'twitter-share', 'width=550,height=235');return false;" class="socialdark twitter">
+                            <svg class="svg-icon svg-icon-fill svg-icon-twitter">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#twitter"></use>
+			                </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://www.facebook.com/sharer/sharer.php?u=http://jaigouk.com/message-queues/" onclick="window.open(this.href, 'facebook-share','width=580,height=296');return false;" class="socialdark facebook">
+                            <svg class="svg-icon svg-icon-fill svg-icon-facebook">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#facebook"></use>
+			                </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="http://www.linkedin.com/shareArticle?mini=true&amp;url=http://jaigouk.com/message-queues/&amp;title=Message%20queues" onclick="window.open(this.href, 'linkedin-share', 'width=490,height=530');return false;" class="socialdark linkedin">
+                            <svg class="svg-icon svg-icon-fill svg-icon-linkedin">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#linkedin"></use>
+			                </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="http://pinterest.com/pin/create/button/?url=http://jaigouk.com/message-queues/&amp;description=Message%20queues" onclick="window.open(this.href, 'pinterest-share', 'width=490,height=530');return false;" class="socialdark pinterest">
+                            <svg class="svg-icon svg-icon-fill svg-icon-pinterest">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#pinterest"></use>
+			                </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="mailto:?body=http://jaigouk.com/message-queues/&subject=Message%20queues" class="socialdark email">
+                            <svg class="svg-icon svg-icon-fill svg-icon-gmail">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#gmail"></use>
+			                </svg>
+                        </a>
+                    </li>
+                    <li>
+                        <span class="socialdark closeshare">
+                            <svg class="svg-icon svg-icon-stroke svg-icon-x">
+				                <use xlink:href="/assets/svg/icons.svg?v=459025735b#x"></use>
+			                </svg>
+                        </span>
+                    </li>
+                </ul>
+            </section>
+            <section class="authorinfo">
+                    <a href="/author/jaigouk/" class="authorname">
+                            <img src="//www.gravatar.com/avatar/dfa5114caa61dd2b010e998cff905d73?s&#x3D;250&amp;d&#x3D;mm&amp;r&#x3D;x" class="gravatar" alt="Jaigouk Kim">
+                        Jaigouk Kim
+                    </a>
+                <span class="authordate">Posted on September 2nd, 2018</span>
+            </section>
+            <ul class="postoptions">
+                <li class="showcomments gotocomments">
+                    <svg class="svg-icon svg-icon-stroke svg-icon-message-square">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#message-square"></use>
+                    </svg>
+                    Comments
+                </li>
+                <li class="showsocial">
+                    <svg class="svg-icon svg-icon-stroke svg-icon-share">
+                        <use xlink:href="/assets/svg/icons.svg?v=459025735b#share"></use>
+                    </svg>
+                    Share
+                </li>
+            </ul>
+        </div>
+        <div class="relatedposts">
+                <a href="/openfaas-on-free-kubernetes/" class="previouspost">
+                        <img src="https://files.jaigouk.com/2018/08/cost-lite-cluster-month.png" alt="OpenFaaS on IBM Cloud">
+                    <div class="info">
+                        <span>Previous Post</span>
+                        <span class="title">OpenFaaS on IBM Cloud</span>
+                    </div>
+                </a>
+            <span class="backtotop">
+                <svg class="svg-icon svg-icon-stroke svg-icon-chevrons-up">
+                    <use xlink:href="/assets/svg/icons.svg?v=459025735b#chevrons-up"></use>
+                </svg>
+            </span>
+                <a href="/evangelizing-openfaas-at-work/" class="nextpost">
+                        <img src="https://files.jaigouk.com/2018/09/Screen-Shot-2018-09-07-at-16.55.47.png" alt="Introducing OpenFaaS to the company">
+                    <div class="info">
+                        <span>Next Post</span>
+                        <span class="title">Introducing OpenFaaS to the company</span>
+                    </div>
+                </a>
+        </div>
+    </footer>
 
     <script async type="text/javascript" src="/assets/js/theme.min.js?v=459025735b"></script>
 

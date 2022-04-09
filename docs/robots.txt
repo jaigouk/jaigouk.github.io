@@ -1,0 +1,5 @@
+User-agent: *
+Sitemap: http://jaigouk.com/sitemap.xml
+Disallow: /ghost/
+Disallow: /p/
+Disallow: /email/
