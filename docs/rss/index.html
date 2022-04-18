@@ -1,15 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Mon, 18 Apr 2022 02:33:45 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[host ghost blog with static pages on github]]></title><description><![CDATA[<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
-    Description=gssg ghost publishing service
-    After=network.service
-    Requires=network.service
-
-    [Service]
-    TimeoutStartSec=10
-    Restart=always
-    User=myuser
-    Group=myuser
-    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
-    ExecStart=/home/myuser/</code></pre>]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><content:encoded><![CDATA[<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Mon, 18 Apr 2022 03:01:05 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
     Description=gssg ghost publishing service
     After=network.service
     Requires=network.service
@@ -25,7 +14,106 @@
     [Install]
     WantedBy=multi-user.target
 </code></pre>
-<!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p>]]></content:encoded></item><item><title><![CDATA[harbor on k3s]]></title><description><![CDATA[Deploying harbor arm64 registry to raspberry pi k3s cluster]]></description><link>https://jaigouk.com/deploying-harbor/</link><guid isPermaLink="false">624ecb2f9001de766d023bcd</guid><category><![CDATA[tools]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 03 Apr 2021 01:30:19 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" alt="harbor on k3s"><p>update(2022): I don&apos;t use harbor anymore with my local k3s cluster. instead, I am just using registry ui with private registry.</p><p></p><p>It took some time to find a simple and easy way to deploy registry with UI to my rpi k3s cluster. The official repo does not provide arm64 images and it requires high memory. I found a way to deploy harbor on my rpi 4 cluster.<br></p><!--kg-card-begin: markdown--><pre><code class="language-sh">git clone https://github.com/querycap/harbor.git
+<!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p><p>here is the webhook part</p><pre><code class="language-rust">
+    use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+
+    use faktory::{Producer, Job};
+    use std::io::{self, Write};
+
+    #[get(&quot;/&quot;)]
+    async fn root() -&gt; impl Responder {
+        HttpResponse::Ok().body(&quot;root&quot;)
+    }
+
+    #[get(&quot;/health&quot;)]
+    async fn health() -&gt; impl Responder {
+        HttpResponse::Ok().body(&quot;fine&quot;)
+    }
+
+    #[get(&quot;/gssg&quot;)]
+    pub async fn gssg_handler() -&gt; impl Responder {
+        let mut p = Producer::connect(Some(FAKTORY_URL)).unwrap();
+
+        p.enqueue(Job::new(&quot;gssg&quot;, vec![&quot;rust&quot;])).unwrap();
+        HttpResponse::Ok().json(&quot;Ok&quot;)
+    }
+
+    #[actix_rt::main]
+    async fn main() -&gt; std::io::Result&lt;()&gt; {
+        println!(&quot;Starting Web server&quot;);
+
+        HttpServer::new(|| {
+            App::new()
+                .service(root)
+                .service(health)
+                .service(gssg_handler)
+        })
+        .bind((&quot;0.0.0.0&quot;, 3001))?
+        .run()
+        .await
+    }</code></pre><p>and gssg bin</p><pre><code class="language-rust">extern crate execute;
+use std::process::Command;
+use execute::Execute;
+
+use faktory::ConsumerBuilder;
+use std::io;
+
+
+fn main() {
+    let mut c = ConsumerBuilder::default();
+    c.register(&quot;gssg&quot;, |job| -&gt; io::Result&lt;()&gt; {
+        println!(&quot;{:?}&quot;, job);
+
+        const GSSG_PATH: &amp;str = &quot;/home/myuser/static-ghost/deploy/update-blog.sh&quot;;
+        let mut command = Command::new(GSSG_PATH);
+        let output = command.execute_output().unwrap();
+        if let Some(exit_code) = output.status.code() {
+            if exit_code == 0 {
+                println!(&quot;Ok.&quot;);
+                Ok(())
+            } else {
+                eprintln!(&quot;Failed.&quot;);
+                Ok(())
+            }
+        } else {
+            eprintln!(&quot;Interrupted!&quot;);
+            Ok(())
+        }
+    });
+
+    let mut consumer = c.connect(Some(FAKTORY_URL)).unwrap();
+
+    if let Err(e) = consumer.run(&amp;[&quot;default&quot;]) {
+        println!(&quot;worker failed: {}&quot;, e);
+    }
+
+}</code></pre><p>updating blog via gssg</p><pre><code class="language-bashscript"> #!/bin/bash
+
+    rm -rf /home/myuser/github-user.github.io
+
+    cd /home/myuser
+    git clone git@github.com:jaigouk/github-user.github.io.git
+
+    cd /home/kusanagi/Kusanagi/github-user.github.io
+    git pull
+    rm -rf /home/myuser/github-user.github.io/docs
+
+    /home/myuser/.npm-global/bin/gssg --dest /home/myuser/github-user.github.io/docs --domain http://local-ip:2368 --url https://mydomain.com
+
+    echo &quot;mydomain.com&quot; &gt; /home/myuser/github-user.github.io/docs/CNAME
+    echo &quot;blog.mydomain.com&quot; &gt;&gt; /home/myuser/github-user.github.io/docs/CNAME
+    echo &quot;www.mydomain.com&quot; &gt;&gt; /home/myuser/github-user.github.io/docs/CNAME
+
+    git config user.name &quot;My Name&quot;
+    git config user.email &quot;my@email.com&quot;
+
+    date &gt; updated_at
+
+    git add .
+    git commit -m &quot;updated on `date +&apos;%Y-%m-%d %H:%M:%S&apos;`&quot;
+    git commit --amend --author=&quot;My Name &lt;my@email.com&gt;&quot; --no-edit
+
+    git push -f</code></pre>]]></content:encoded></item><item><title><![CDATA[harbor on k3s]]></title><description><![CDATA[Deploying harbor arm64 registry to raspberry pi k3s cluster]]></description><link>https://jaigouk.com/deploying-harbor/</link><guid isPermaLink="false">624ecb2f9001de766d023bcd</guid><category><![CDATA[tools]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 03 Apr 2021 01:30:19 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" alt="harbor on k3s"><p>update(2022): I don&apos;t use harbor anymore with my local k3s cluster. instead, I am just using registry ui with private registry.</p><p></p><p>It took some time to find a simple and easy way to deploy registry with UI to my rpi k3s cluster. The official repo does not provide arm64 images and it requires high memory. I found a way to deploy harbor on my rpi 4 cluster.<br></p><!--kg-card-begin: markdown--><pre><code class="language-sh">git clone https://github.com/querycap/harbor.git
 cd harbor
 make dep
 cd components/harbor
