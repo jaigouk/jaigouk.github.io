@@ -1,4 +1,31 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Wed, 13 Apr 2022 19:40:32 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[harbor on k3s]]></title><description><![CDATA[Deploying harbor arm64 registry to raspberry pi k3s cluster]]></description><link>https://jaigouk.com/deploying-harbor/</link><guid isPermaLink="false">624ecb2f9001de766d023bcd</guid><category><![CDATA[tools]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 03 Apr 2021 01:30:19 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" alt="harbor on k3s"><p>update(2022): I don&apos;t use harbor anymore with my local k3s cluster. instead, I am just using registry ui with private registry.</p><p></p><p>It took some time to find a simple and easy way to deploy registry with UI to my rpi k3s cluster. The official repo does not provide arm64 images and it requires high memory. I found a way to deploy harbor on my rpi 4 cluster.<br></p><!--kg-card-begin: markdown--><pre><code class="language-sh">git clone https://github.com/querycap/harbor.git
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Mon, 18 Apr 2022 02:33:45 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[host ghost blog with static pages on github]]></title><description><![CDATA[<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
+    Description=gssg ghost publishing service
+    After=network.service
+    Requires=network.service
+
+    [Service]
+    TimeoutStartSec=10
+    Restart=always
+    User=myuser
+    Group=myuser
+    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+    ExecStart=/home/myuser/</code></pre>]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><content:encoded><![CDATA[<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
+    Description=gssg ghost publishing service
+    After=network.service
+    Requires=network.service
+
+    [Service]
+    TimeoutStartSec=10
+    Restart=always
+    User=myuser
+    Group=myuser
+    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+    ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
+
+    [Install]
+    WantedBy=multi-user.target
+</code></pre>
+<!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p>]]></content:encoded></item><item><title><![CDATA[harbor on k3s]]></title><description><![CDATA[Deploying harbor arm64 registry to raspberry pi k3s cluster]]></description><link>https://jaigouk.com/deploying-harbor/</link><guid isPermaLink="false">624ecb2f9001de766d023bcd</guid><category><![CDATA[tools]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 03 Apr 2021 01:30:19 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" alt="harbor on k3s"><p>update(2022): I don&apos;t use harbor anymore with my local k3s cluster. instead, I am just using registry ui with private registry.</p><p></p><p>It took some time to find a simple and easy way to deploy registry with UI to my rpi k3s cluster. The official repo does not provide arm64 images and it requires high memory. I found a way to deploy harbor on my rpi 4 cluster.<br></p><!--kg-card-begin: markdown--><pre><code class="language-sh">git clone https://github.com/querycap/harbor.git
 cd harbor
 make dep
 cd components/harbor
@@ -436,105 +463,4 @@ the power shift from platforms to people would happen anytime soon.
 <div class="github-card" data-user="ipfs" data-repo="ipfs"></div>
 <div class="github-card" data-user="igorbarinov" data-repo="awesome-blockchain"></div>
 <script src="https://cdn.jaigouk.com/js/github-cards.js"></script>
-<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[Running Deis on AWS]]></title><description><![CDATA[deploymenent, deis, kubernetes, naked domain with cloud flare]]></description><link>https://jaigouk.com/running-deis-on-aws/</link><guid isPermaLink="false">624ecb2f9001de766d023baf</guid><category><![CDATA[Architecture]]></category><category><![CDATA[devops]]></category><category><![CDATA[posts]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 18 Oct 2016 04:09:12 GMT</pubDate><media:content url="https://cdn.jaigouk.com/2016/10/coffee-coding-512w.png" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://cdn.jaigouk.com/2016/10/coffee-coding-512w.png" alt="Running Deis on AWS"><p class="subtitle">
-(Deis + Kubernetes + AWS) for the win
-</p>
-<p>I like to use deis because I can deploy my projects just like heroku while I can play with kubernetes. So I setup deis on aws. I wanted to use http2 and I can&apos;t use http2 ports on heroku.</p>
-<p>3 Steps</p>
-<ol>
-<li>deploy kubernetes with <a href="https://github.com/kz8s/tack">tack</a></li>
-<li>install deis with helmc</li>
-<li>setup DNS and Letsencrypt certs</li>
-</ol>
-<h4 id="tack">tack</h4>
-<p>I used <a href="https://github.com/kz8s/tack">https://github.com/kz8s/tack</a> for setting up kubernetes on AWS.</p>
-<ol>
-<li>check <code>~/.aws/config</code> region</li>
-<li>change name of region in <code>Makefile</code> after running <code>make clean</code></li>
-<li>if kubectl is not working, check the path of <code>tack/.cfssl</code> or <code>tack/.keypair</code></li>
-<li>in <code>io.tf</code> you can change kubernetes version. visit &quot;quay.io/coreos/hyperkube&quot; and check the latest tag.</li>
-<li>in <code>~/.kube/config</code>, there would be settings for previous builds.</li>
-<li>check <code>~/.helmc</code> and delete cache and workspace folders. (in case you changed the path of <code>tack</code>)</li>
-</ol>
-<h4 id="deis">Deis</h4>
-<p>we are gong to use <a href="https://github.com/kubernetes/helm">Helm</a> to manage packages for kubernetes.</p>
-<pre><code>curl -sSL http://deis.io/deis-cli/install-v2.sh | bash
-mv deis /usr/local/bin
-curl -sSL https://get.helm.sh | bash
-
-mv $PWD/helmc /usr/local/bin/helmc
-helmc target # Ensure the kubectl client is installed and 
-			 # can connect to your Kubernetes cluster.
-</code></pre>
-<p>CAUTION. UPDATE ROLES TO worker and master role. then visit <a href="https://console.aws.amazon.com/iam/home?region=ap-southeast-1#roles">https://console.aws.amazon.com/iam/home?region=ap-southeast-1#roles</a>. Add ec2, rds, s3, ecs roles to worker .</p>
-<p>if you want to change config for workflow, check deis-s3-db-registry folder</p>
-<pre><code>helmc fetch deis/workflow-v2.7.0            # fetches the chart into a
-											# local workspace
-</code></pre>
-<p>At this point, You may want to configure s3 and postgres for deis.<br>
-<a href="https://deis.com/docs/workflow/installing-workflow/configuring-postgres/">https://deis.com/docs/workflow/installing-workflow/configuring-postgres/</a></p>
-<p>On aws, after creating the postgres db, add a inboud rule to the security group like this so that local machine or deis can connect to it.</p>
-<pre><code>Security Group Rules - Edit inbound rules
-TCP 5432 Anywhere 0.0.0.0/0
-</code></pre>
-<p>For s3, Ater creating 3 bukcets, you need to add more permission to the IAM role. visit <a href="https://console.aws.amazon.com/iam/home?region=ap-southeast-1#roles">https://console.aws.amazon.com/iam/home?region=ap-southeast-1#roles</a> and add s3 related permissions to worker-k8s-rpc, master-k8s-rpc<br>
-currently, I am not using ecr for registry. For custom domains, you may want to add route53 related permissions to those roles too.</p>
-<p>If you want to use ecr then visit <a href="https://ap-southeast-1.console.aws.amazon.com/ecs/home?region=ap-southeast-1#/firstRun">https://ap-southeast-1.console.aws.amazon.com/ecs/home?region=ap-southeast-1#/firstRun</a> and setup cluster then change the <code>~/.helmc/workspace/charts/workflow-v2.7.0/tpl/generate_params.toml</code> file.</p>
-<p>change s3 or rds related config before you run <code>generate</code></p>
-<pre><code>helmc generate -x manifests workflow-v2.7.0 # generates various secrets
-helmc install workflow-v2.7.0               # injects resources into
-											# your cluster
-kubectl --namespace=deis get pods #-&gt; should return more than 10 pods
-</code></pre>
-<p>Configure your AWS Load Balancer for <code>git push</code>. Set the timeout to 3600.<br>
-<a href="https://deis.com/docs/workflow/managing-workflow/configuring-load-balancers/">configuring a load balancer&#xB6;</a></p>
-<pre><code>kubectl --namespace=deis annotate deployment/deis-router router.deis.io/nginx.useProxyProtocol=true
-
- kubectl --namespace=deis annotate service/deis-router service.beta.kubernetes.io/aws-load-balancer-proxy-protocol=&apos;*&apos;
-</code></pre>
-<p>and then register to your server</p>
-<pre><code>
-deis register http://deis.example.com
-admin / ****** 
-</code></pre>
-<p>add ssh <code>deis keys:add</code>. For setting up DNS records, check the following section.</p>
-<h4 id="nakeddomainforadeisproject">Naked domain for a deis project</h4>
-<p>I have several domains for projects. let&#x2019;s say 2 for deis hub and 1 for my project. Assume that example.com is our project and root.io and root.co are my hub domains. I am using AWS and Cloudflare to achieve naked domain.</p>
-<p>add domains to the repo</p>
-<pre><code>  deis domains:add example.com
-  deis domains:add www.example.com
-  deis domains:add unbent-backbone.root.io
-</code></pre>
-<p>add a url forwarding page rule: match &quot;www.example.com/*&quot; with &quot;<a href="https://example.com/$1">https://example.com/$1</a>&quot;</p>
-<pre><code>  # DNS Setup for example.com on cloudflare
-  CNAME www             unbent-backbone.root.io  (orange)
-  CNAME @               unbent-backbone.root.io  (orange)
-
-  # DNS Setup for root.io on cloudflare
-  CNAME @               hub.root.co      (!! NO ORANGE)
-  CNAME deis            hub.root.co      (orange)
-  CNAME deis-builder    hub.root.co      (!! NO ORANGE)
-  CNAME unbent-backbone hub.root.co      (orange)
-</code></pre>
-<p>setup the alias for elb</p>
-<pre><code>  # DNS Setup for root.co on AWS Route53
-  A hub.root.co Alias Target dualstack.xxx.ap-southeast-1.elb.amazonaws.com
-</code></pre>
-<h4 id="letsencrypt">Letsencrypt</h4>
-<ol>
-<li>do nothing for aws elb</li>
-<li>use cloudflare for https assets</li>
-<li>use <code>kube-cert-manager</code>.based on <a href="https://github.com/PalmStoneGames/kube-cert-manager">https://github.com/PalmStoneGames/kube-cert-manager</a>, it works. I just had to change <code>psg</code> to my domain in the project files. and build <code>kube-cert-manager</code>executable file. And then I build the docker image and published it.</li>
-</ol>
-<h4 id="uninstallreinstall">Uninstall / Reinstall</h4>
-<p>if you are going to reinstall, do not delete elb.</p>
-<pre><code>	cd .helmc
-	helmc uninstall workflow-v2.7.0 -n deis
-	cd tack
-	make clean
-</code></pre>
-<p>check vpc, elb, s3 buckets<br>
-change the name of instance in tack&apos;s Makefile<br>
-before install, check to regions in ~/.aws/ and ~/.deis and tack&apos;s Make file<br>
-or any ENV vars. ~/.zsh_aliase has ENV var to access AWS!</p>
 <!--kg-card-end: markdown-->]]></content:encoded></item></channel></rss>
