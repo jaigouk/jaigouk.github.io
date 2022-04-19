@@ -33,14 +33,14 @@
     <meta property="og:site_name" content="Jaigouk.Kim" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content="Switching between git profiles" />
-    <meta property="og:description" content="Maintaining multiple profiles are pain in the ass. Sometimes, it&#x27;s easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that. You can automate switching users based on directory.  For zsh,  precmd_functions&#x3D;(switch_git_user) switch_git_user() {   if" />
+    <meta property="og:description" content="Thinking of yourself as a separate entity can reduce anxiety, while also kicking up some major benefits for your confidence and determination. - David Robson, BBC.comThis article(The &#x27;Batman Effect&#x27;: How having an alter ego empowers you) was featured on HN best. It would be more productive for you" />
     <meta property="og:url" content="https://jaigouk.com/switching-between-git-profiles/" />
     <meta property="og:image" content="https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg" />
     <meta property="article:published_time" content="2019-03-02T09:52:00.000Z" />
-    <meta property="article:modified_time" content="2021-03-31T00:53:53.000Z" />
+    <meta property="article:modified_time" content="2022-04-19T21:30:21.000Z" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Switching between git profiles" />
-    <meta name="twitter:description" content="Maintaining multiple profiles are pain in the ass. Sometimes, it&#x27;s easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that. You can automate switching users based on directory.  For zsh,  precmd_functions&#x3D;(switch_git_user) switch_git_user() {   if" />
+    <meta name="twitter:description" content="Thinking of yourself as a separate entity can reduce anxiety, while also kicking up some major benefits for your confidence and determination. - David Robson, BBC.comThis article(The &#x27;Batman Effect&#x27;: How having an alter ego empowers you) was featured on HN best. It would be more productive for you" />
     <meta name="twitter:url" content="https://jaigouk.com/switching-between-git-profiles/" />
     <meta name="twitter:image" content="https://files.jaigouk.com/2018/08/vangoghmuseum-s0117V1962-1920.jpg" />
     <meta name="twitter:label1" content="Written by" />
@@ -77,8 +77,8 @@
     "headline": "Switching between git profiles",
     "url": "https://jaigouk.com/switching-between-git-profiles/",
     "datePublished": "2019-03-02T09:52:00.000Z",
-    "dateModified": "2021-03-31T00:53:53.000Z",
-    "description": "Maintaining multiple profiles are pain in the ass. Sometimes, it&#x27;s easy to\nswitch and commit your codes and push. So, I have my own setup to prevent a\nsituation like that.\n\nYou can automate switching users based on directory.\n\nFor zsh,\n\nprecmd_functions&#x3D;(switch_git_user)\nswitch_git_user() {\n  if [[ $PWD &#x3D;&#x3D; &quot;$HOME/user/git_repo&quot; ]]; then\n    $HOME/bin/switch hack\n\n    cat ~/.gitconfig\n  fi\n}\n\n\nwith the switch script and precmd above, I can just switch git profile\nautomatically.",
+    "dateModified": "2022-04-19T21:30:21.000Z",
+    "description": "&gt; Thinking of yourself as a separate entity can reduce anxiety, while also kicking\nup some major benefits for your confidence and determination. - David Robson,\nBBC.com\nThis article(The &#x27;Batman Effect&#x27;: How having an alter ego empowers you\n[https://lsa.umich.edu/psych/news-events/all-news/faculty-news/the--batman-effect---how-having-an-alter-ego-empowers-you.html]\n) was featured on HN best. It would be more productive for you to have a\nseparate machine and git profiel to be more focused on side ",
     "mainEntityOfPage": {
         "@type": "WebPage",
         "@id": "https://jaigouk.com/"
@@ -279,7 +279,7 @@
     </section>
 
 		<section class="postcontents wrapper">
-			<p>Maintaining multiple profiles are pain in the ass. Sometimes, it's easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that.</p><!--kg-card-begin: markdown--><p>You can automate switching users based on directory.</p>
+			<blockquote>Thinking of yourself as a separate entity can reduce anxiety, while also kicking up some major benefits for your confidence and determination. - David Robson, BBC.com</blockquote><p>This article(<a href="https://lsa.umich.edu/psych/news-events/all-news/faculty-news/the--batman-effect---how-having-an-alter-ego-empowers-you.html">The 'Batman Effect': How having an alter ego empowers you</a>) was featured on HN best. It would be more productive for you to have a separate machine and git profiel to be more focused on side projects.  But maintaining multiple profiles can be painful. Sometimes, it's easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that.</p><!--kg-card-begin: markdown--><p>You can automate switching users based on directory.</p>
 <p>For zsh,</p>
 <pre><code class="language-sh">precmd_functions=(switch_git_user)
 switch_git_user() {
