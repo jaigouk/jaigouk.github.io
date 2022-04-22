@@ -18,7 +18,7 @@
     <meta property="og:url" content="https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/" />
     <meta property="og:image" content="https://files.jaigouk.com/2022/04/ghost-bg.jpg" />
     <meta property="article:published_time" content="2022-04-18T02:30:38.000Z" />
-    <meta property="article:modified_time" content="2022-04-18T03:14:22.000Z" />
+    <meta property="article:modified_time" content="2022-04-22T19:54:27.000Z" />
     <meta property="article:tag" content="tools" />
     <meta property="article:tag" content="posts" />
     <meta property="article:tag" content="devops" />
@@ -64,7 +64,7 @@
     "headline": "hosting ghost blog with static pages on github",
     "url": "https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/",
     "datePublished": "2022-04-18T02:30:38.000Z",
-    "dateModified": "2022-04-18T03:14:22.000Z",
+    "dateModified": "2022-04-22T19:54:27.000Z",
     "image": {
         "@type": "ImageObject",
         "url": "https://files.jaigouk.com/2022/04/ghost-bg.jpg",
@@ -1078,21 +1078,21 @@
             </figure>
             <section class="post-content">
 
-                <p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><pre><code>    [Unit]
-    Description=gssg ghost publishing service
-    After=network.service
-    Requires=network.service
+                <p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><pre><code class="language-sh">[Unit]
+Description=gssg ghost publishing service
+After=network.service
+Requires=network.service
 
-    [Service]
-    TimeoutStartSec=10
-    Restart=always
-    User=myuser
-    Group=myuser
-    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
-    ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
+[Service]
+TimeoutStartSec=10
+Restart=always
+User=myuser
+Group=myuser
+WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 </code></pre>
 <p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p><p>here is the webhook part</p><pre><code class="language-rust">
     use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};

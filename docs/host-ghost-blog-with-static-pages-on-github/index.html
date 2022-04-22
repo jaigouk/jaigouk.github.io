@@ -38,7 +38,7 @@
     <meta property="og:url" content="https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/" />
     <meta property="og:image" content="https://files.jaigouk.com/2022/04/ghost-bg.jpg" />
     <meta property="article:published_time" content="2022-04-18T02:30:38.000Z" />
-    <meta property="article:modified_time" content="2022-04-18T03:14:22.000Z" />
+    <meta property="article:modified_time" content="2022-04-22T19:54:27.000Z" />
     <meta property="article:tag" content="tools" />
     <meta property="article:tag" content="posts" />
     <meta property="article:tag" content="devops" />
@@ -84,7 +84,7 @@
     "headline": "hosting ghost blog with static pages on github",
     "url": "https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/",
     "datePublished": "2022-04-18T02:30:38.000Z",
-    "dateModified": "2022-04-18T03:14:22.000Z",
+    "dateModified": "2022-04-22T19:54:27.000Z",
     "image": {
         "@type": "ImageObject",
         "url": "https://files.jaigouk.com/2022/04/ghost-bg.jpg",
@@ -103,8 +103,20 @@
     <meta name="generator" content="Ghost 4.42" />
     <link rel="alternate" type="application/rss+xml" title="Jaigouk.Kim" href="https://jaigouk.com/rss/" />
     
-    <script defer src="/public/cards.min.js?v=3fadfd1fb8"></script><style>:root {--ghost-accent-color: #FF1A75;}</style>
+    <script defer src="/public/cards.min.js?v=3fadfd1fb8"></script>
     <link rel="stylesheet" type="text/css" href="/public/cards.min.css?v=3fadfd1fb8">
+    <script src="https://files.jaigouk.com/prism.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<link rel="stylesheet" href="https://files.jaigouk.com/prism.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+code[class*="language-"],
+code[class*="language-"] *,
+pre[class*="language-"] {
+    word-wrap: normal;
+    word-break: normal;
+    font-size: 90%;
+}
+</style>
+    <style>:root {--ghost-accent-color: #FF1A75;}</style>
 </head>
 <body class="post-template tag-tools tag-posts-tag tag-devops ">
 
@@ -341,21 +353,21 @@
     </section>
 
 		<section class="postcontents wrapper">
-			<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
-    Description=gssg ghost publishing service
-    After=network.service
-    Requires=network.service
+			<p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code class="language-sh">[Unit]
+Description=gssg ghost publishing service
+After=network.service
+Requires=network.service
 
-    [Service]
-    TimeoutStartSec=10
-    Restart=always
-    User=myuser
-    Group=myuser
-    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
-    ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
+[Service]
+TimeoutStartSec=10
+Restart=always
+User=myuser
+Group=myuser
+WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 </code></pre>
 <!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p><p>here is the webhook part</p><pre><code class="language-rust">
     use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};

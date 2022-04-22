@@ -1,18 +1,18 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Thu, 21 Apr 2022 22:02:41 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost-bg.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost-bg.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code>    [Unit]
-    Description=gssg ghost publishing service
-    After=network.service
-    Requires=network.service
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Fri, 22 Apr 2022 19:55:18 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost-bg.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost-bg.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code class="language-sh">[Unit]
+Description=gssg ghost publishing service
+After=network.service
+Requires=network.service
 
-    [Service]
-    TimeoutStartSec=10
-    Restart=always
-    User=myuser
-    Group=myuser
-    WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
-    ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
+[Service]
+TimeoutStartSec=10
+Restart=always
+User=myuser
+Group=myuser
+WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
 </code></pre>
 <!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p><p>here is the webhook part</p><pre><code class="language-rust">
     use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
