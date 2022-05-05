@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Thu, 05 May 2022 11:58:02 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Thu, 05 May 2022 18:56:46 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
 # We only pay the installation cost once,
 # it will be cached from the second build onwards
 RUN cargo install cargo-chef
@@ -31,11 +31,15 @@ RUN apt-get update -qq &amp;&amp; DEBIAN_FRONTEND=noninteractive apt-get -yq dis
 
 WORKDIR app
 COPY --from=builder /app/target/release/ssr .
-RUN mkdir static
-COPY --from=builder /app/static /static
+RUN mkdir static &amp;&amp; mkdir db
+COPY --from=builder /app/static ./static/
+COPY --from=builder /app/db ./db/
 
-ARG HOST_PORT=127.0.0.1:3000
+ARG HOST_PORT=&quot;127.0.0.1:3000&quot;
 ENV HOST_PORT=&quot;${HOST_PORT}&quot;
+
+ARG LOG_LEVEL=&quot;info&quot;
+ENV LOG_LEVEL=&quot;${LOG_LEVEL}&quot;
 
 ARG DATABASE_URL=&quot;postgres://user:xxxx@127.0.0.1:5432/service_production?sslmode=disable&quot;
 ENV DATABASE_URL=&quot;${DATABASE_URL}&quot;
