@@ -38,7 +38,7 @@
     <meta property="og:url" content="https://jaigouk.com/building-docker-image-for-rust/" />
     <meta property="og:image" content="https://files.jaigouk.com/2022/05/container-ship.jpg" />
     <meta property="article:published_time" content="2022-05-05T11:28:24.000Z" />
-    <meta property="article:modified_time" content="2022-05-05T18:56:32.000Z" />
+    <meta property="article:modified_time" content="2022-05-08T20:41:33.000Z" />
     <meta property="article:tag" content="rust" />
     
     <meta name="twitter:card" content="summary_large_image" />
@@ -82,7 +82,7 @@
     "headline": "Building docker image for rust",
     "url": "https://jaigouk.com/building-docker-image-for-rust/",
     "datePublished": "2022-05-05T11:28:24.000Z",
-    "dateModified": "2022-05-05T18:56:32.000Z",
+    "dateModified": "2022-05-08T20:41:33.000Z",
     "image": {
         "@type": "ImageObject",
         "url": "https://files.jaigouk.com/2022/05/container-ship.jpg",
@@ -356,7 +356,7 @@ pre[class*="language-"] {
 # We only pay the installation cost once,
 # it will be cached from the second build onwards
 RUN cargo install cargo-chef
-WORKDIR app
+WORKDIR /app
 
 FROM chef AS planner
 COPY . .
@@ -383,7 +383,7 @@ RUN apt-get update -qq &amp;&amp; DEBIAN_FRONTEND=noninteractive apt-get -yq dis
     &amp;&amp; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     &amp;&amp; truncate -s 0 /var/log/*log
 
-WORKDIR app
+WORKDIR /app
 COPY --from=builder /app/target/release/ssr .
 RUN mkdir static &amp;&amp; mkdir db
 COPY --from=builder /app/static ./static/
