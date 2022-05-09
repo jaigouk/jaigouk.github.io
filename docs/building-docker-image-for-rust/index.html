@@ -38,7 +38,7 @@
     <meta property="og:url" content="https://jaigouk.com/building-docker-image-for-rust/" />
     <meta property="og:image" content="https://files.jaigouk.com/2022/05/container-ship.jpg" />
     <meta property="article:published_time" content="2022-05-05T11:28:24.000Z" />
-    <meta property="article:modified_time" content="2022-05-09T11:57:07.000Z" />
+    <meta property="article:modified_time" content="2022-05-09T12:05:12.000Z" />
     <meta property="article:tag" content="rust" />
     
     <meta name="twitter:card" content="summary_large_image" />
@@ -82,7 +82,7 @@
     "headline": "Building docker image for rust",
     "url": "https://jaigouk.com/building-docker-image-for-rust/",
     "datePublished": "2022-05-05T11:28:24.000Z",
-    "dateModified": "2022-05-09T11:57:07.000Z",
+    "dateModified": "2022-05-09T12:05:12.000Z",
     "image": {
         "@type": "ImageObject",
         "url": "https://files.jaigouk.com/2022/05/container-ship.jpg",
@@ -389,6 +389,11 @@ RUN apt-get update -qq &amp;&amp; DEBIAN_FRONTEND=noninteractive apt-get -yq dis
     &amp;&amp; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     &amp;&amp; truncate -s 0 /var/log/*log
 
+# I use dbmate to mantain db migrations
+RUN wget --no-check-certificate https://github.com/amacneil/dbmate/releases/download/v1.15.0/dbmate-linux-arm64 \
+  &amp;&amp; mv dbmate-linux-arm64 /bin/dbmate \
+  &amp;&amp; chmod +x /bin/dbmate
+  
 WORKDIR /app
 COPY --from=builder /app/target/release/ssr .
 RUN mkdir static &amp;&amp; mkdir db
@@ -403,11 +408,6 @@ ENV LOG_LEVEL="${LOG_LEVEL}"
 
 ENV DATABASE_URL="${DATABASE_URL}"
 ENV TEST_DATABASE_URL="${TEST_DATABASE_URL}"
-
-# I use dbmate to mantain db migrations
-RUN wget --no-check-certificate https://github.com/amacneil/dbmate/releases/download/v1.15.0/dbmate-linux-arm64 \
-  &amp;&amp; mv dbmate-linux-arm64 /bin/dbmate \
-  &amp;&amp; chmod +x /bin/dbmate
 
 EXPOSE 3000
 
