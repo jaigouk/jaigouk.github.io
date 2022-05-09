@@ -38,7 +38,7 @@
     <meta property="og:url" content="https://jaigouk.com/building-docker-image-for-rust/" />
     <meta property="og:image" content="https://files.jaigouk.com/2022/05/container-ship.jpg" />
     <meta property="article:published_time" content="2022-05-05T11:28:24.000Z" />
-    <meta property="article:modified_time" content="2022-05-08T20:41:33.000Z" />
+    <meta property="article:modified_time" content="2022-05-09T11:49:01.000Z" />
     <meta property="article:tag" content="rust" />
     
     <meta name="twitter:card" content="summary_large_image" />
@@ -82,7 +82,7 @@
     "headline": "Building docker image for rust",
     "url": "https://jaigouk.com/building-docker-image-for-rust/",
     "datePublished": "2022-05-05T11:28:24.000Z",
-    "dateModified": "2022-05-08T20:41:33.000Z",
+    "dateModified": "2022-05-09T11:49:01.000Z",
     "image": {
         "@type": "ImageObject",
         "url": "https://files.jaigouk.com/2022/05/container-ship.jpg",
@@ -368,6 +368,12 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 # Build application
 COPY . .
+ARG DATABASE_URL="postgres://kusanagi:xxxx@127.0.0.1:5432/timetable_service_production?sslmode=disable"
+ENV DATABASE_URL="${DATABASE_URL}"
+
+ARG TEST_DATABASE_URL="postgres://kusanagi:xxx@127.0.0.1:5432/timetable_service_ci?sslmode=disable"
+ENV TEST_DATABASE_URL="${TEST_DATABASE_URL}"
+
 RUN cargo build --release --bin ssr
 
 # We do not need the Rust toolchain to run the binary!
@@ -389,16 +395,13 @@ RUN mkdir static &amp;&amp; mkdir db
 COPY --from=builder /app/static ./static/
 COPY --from=builder /app/db ./db/
 
-ARG HOST_PORT="127.0.0.1:3000"
+ARG HOST_PORT="0.0.0.0:3000"
 ENV HOST_PORT="${HOST_PORT}"
 
 ARG LOG_LEVEL="info"
 ENV LOG_LEVEL="${LOG_LEVEL}"
 
-ARG DATABASE_URL="postgres://user:xxxx@127.0.0.1:5432/service_production?sslmode=disable"
 ENV DATABASE_URL="${DATABASE_URL}"
-
-ARG TEST_DATABASE_URL="postgres://user:xxx@127.0.0.1:5432/service_ci?sslmode=disable"
 ENV TEST_DATABASE_URL="${TEST_DATABASE_URL}"
 
 # I use dbmate to mantain db migrations
@@ -408,7 +411,7 @@ RUN wget --no-check-certificate https://github.com/amacneil/dbmate/releases/down
 
 EXPOSE 3000
 
-CMD ["/bin/bash"]</code></pre>
+CMD ["/bin/bash"]</code></pre><p></p><p></p>
 		</section>
 
 		

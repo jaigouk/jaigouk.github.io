@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Sun, 08 May 2022 20:42:02 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Mon, 09 May 2022 11:49:42 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
 # We only pay the installation cost once,
 # it will be cached from the second build onwards
 RUN cargo install cargo-chef
@@ -14,6 +14,12 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 # Build application
 COPY . .
+ARG DATABASE_URL=&quot;postgres://kusanagi:xxxx@127.0.0.1:5432/timetable_service_production?sslmode=disable&quot;
+ENV DATABASE_URL=&quot;${DATABASE_URL}&quot;
+
+ARG TEST_DATABASE_URL=&quot;postgres://kusanagi:xxx@127.0.0.1:5432/timetable_service_ci?sslmode=disable&quot;
+ENV TEST_DATABASE_URL=&quot;${TEST_DATABASE_URL}&quot;
+
 RUN cargo build --release --bin ssr
 
 # We do not need the Rust toolchain to run the binary!
@@ -35,16 +41,13 @@ RUN mkdir static &amp;&amp; mkdir db
 COPY --from=builder /app/static ./static/
 COPY --from=builder /app/db ./db/
 
-ARG HOST_PORT=&quot;127.0.0.1:3000&quot;
+ARG HOST_PORT=&quot;0.0.0.0:3000&quot;
 ENV HOST_PORT=&quot;${HOST_PORT}&quot;
 
 ARG LOG_LEVEL=&quot;info&quot;
 ENV LOG_LEVEL=&quot;${LOG_LEVEL}&quot;
 
-ARG DATABASE_URL=&quot;postgres://user:xxxx@127.0.0.1:5432/service_production?sslmode=disable&quot;
 ENV DATABASE_URL=&quot;${DATABASE_URL}&quot;
-
-ARG TEST_DATABASE_URL=&quot;postgres://user:xxx@127.0.0.1:5432/service_ci?sslmode=disable&quot;
 ENV TEST_DATABASE_URL=&quot;${TEST_DATABASE_URL}&quot;
 
 # I use dbmate to mantain db migrations
@@ -54,7 +57,7 @@ RUN wget --no-check-certificate https://github.com/amacneil/dbmate/releases/down
 
 EXPOSE 3000
 
-CMD [&quot;/bin/bash&quot;]</code></pre>]]></content:encoded></item><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost-bg.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost-bg.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code class="language-sh">[Unit]
+CMD [&quot;/bin/bash&quot;]</code></pre><p></p><p></p>]]></content:encoded></item><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost-bg.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost-bg.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code class="language-sh">[Unit]
 Description=gssg ghost publishing service
 After=network.service
 Requires=network.service
