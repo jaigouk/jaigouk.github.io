@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Thu, 09 Jun 2022 15:03:24 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
+# We only pay the installation cost once,
+# it will be cached from the second build onwards
+RUN cargo install cargo-chef
+WORKDIR /app
+
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare  --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+ARG DATABASE_URL=&quot;postgres://username:xxxx@127.0.0.1:5432/myapp_production?sslmode=disable&quot;
+ENV DATABASE_URL=&quot;${DATABASE_URL}&quot;
+
+ARG TEST_DATABASE_URL=&quot;postgres://username:xxx@127.0.0.1:5432/myapp_service_ci?sslmode=disable&quot;
+ENV TEST_DATABASE_URL=&quot;${TEST_DATABASE_URL}&quot;
+
+RUN cargo build --release --bin ssr
+
+# We do not need the Rust toolchain to run the binary!
+FROM debian:bullseye-slim AS runtime
+# Application dependencies
+# We use an external Aptfile for this, stay tuned
+COPY Aptfile /tmp/Aptfile
+RUN apt-get update -qq &amp;&amp; DEBIAN_FRONTEND=noninteractive apt-get -yq dist-upgrade &amp;&amp; \
+  DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+    $(grep -Ev &apos;^\s*#&apos; /tmp/Aptfile | xargs) \
+    &amp;&amp; apt-get clean \
+    &amp;&amp; rm -rf /var/cache/apt/archives/* \
+    &amp;&amp; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
+    &amp;&amp; truncate -s 0 /var/log/*log
+
+# I use dbmate to mantain db migrations
+RUN wget --no-check-certificate https://github.com/amacneil/dbmate/releases/download/v1.15.0/dbmate-linux-arm64 \
+  &amp;&amp; mv dbmate-linux-arm64 /bin/dbmate \
+  &amp;&amp; chmod +x /bin/dbmate
+  
+WORKDIR /app
+COPY --from=builder /app/target/release/ssr .
+RUN mkdir static &amp;&amp; mkdir db
+COPY --from=builder /app/static ./static/
+COPY --from=builder /app/db ./db/
+
+ARG HOST_PORT=&quot;0.0.0.0:3000&quot;
+ENV HOST_PORT=&quot;${HOST_PORT}&quot;
+
+ARG LOG_LEVEL=&quot;info&quot;
+ENV LOG_LEVEL=&quot;${LOG_LEVEL}&quot;
+
+ENV DATABASE_URL=&quot;${DATABASE_URL}&quot;
+ENV TEST_DATABASE_URL=&quot;${TEST_DATABASE_URL}&quot;
+
+EXPOSE 3000
+
+CMD [&quot;/bin/bash&quot;]</code></pre><p></p><p></p>]]></content:encoded></item><item><title><![CDATA[hosting ghost blog with static pages on github]]></title><description><![CDATA[hosting ghost blog via github static pages. It can be done via gssg tool while hosting it locally on raspberry pi. ]]></description><link>https://jaigouk.com/host-ghost-blog-with-static-pages-on-github/</link><guid isPermaLink="false">625cb85d3d364f64596f879f</guid><category><![CDATA[tools]]></category><category><![CDATA[posts]]></category><category><![CDATA[devops]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 18 Apr 2022 02:30:38 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/ghost-bg.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/04/ghost-bg.jpg" alt="hosting ghost blog with static pages on github"><p>I am hosting my ghost blog on github static page. but I am writing blog posts with ghost instance on rpi. </p><!--kg-card-begin: markdown--><pre><code class="language-sh">[Unit]
+Description=gssg ghost publishing service
+After=network.service
+Requires=network.service
+
+[Service]
+TimeoutStartSec=10
+Restart=always
+User=myuser
+Group=myuser
+WorkingDirectory=/home/myuser/static-ghost/ghost-publisher
+ExecStart=/home/myuser/.cargo/bin/cargo run --bin gssg
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<!--kg-card-end: markdown--><p>gssg is a simple rust actix-web service that triggers <a href="https://github.com/Fried-Chicken/ghost-static-site-generator">gssg</a> in raspberry pi and then pushes to github pages. This is a faktory consumer.</p><p>There is another web hook service that is acting as a faktory producer. Because gssg takes time to fetch blog posts and pushing also takes time, this should be done as a long running background job.</p><p>here is the webhook part</p><pre><code class="language-rust">
+    use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+
+    use faktory::{Producer, Job};
+    use std::io::{self, Write};
+
+    #[get(&quot;/&quot;)]
+    async fn root() -&gt; impl Responder {
+        HttpResponse::Ok().body(&quot;root&quot;)
+    }
+
+    #[get(&quot;/health&quot;)]
+    async fn health() -&gt; impl Responder {
+        HttpResponse::Ok().body(&quot;fine&quot;)
+    }
+
+    #[get(&quot;/gssg&quot;)]
+    pub async fn gssg_handler() -&gt; impl Responder {
+        let mut p = Producer::connect(Some(FAKTORY_URL)).unwrap();
+
+        p.enqueue(Job::new(&quot;gssg&quot;, vec![&quot;rust&quot;])).unwrap();
+        HttpResponse::Ok().json(&quot;Ok&quot;)
+    }
+
+    #[actix_rt::main]
+    async fn main() -&gt; std::io::Result&lt;()&gt; {
+        println!(&quot;Starting Web server&quot;);
+
+        HttpServer::new(|| {
+            App::new()
+                .service(root)
+                .service(health)
+                .service(gssg_handler)
+        })
+        .bind((&quot;0.0.0.0&quot;, 3001))?
+        .run()
+        .await
+    }</code></pre><p>and gssg bin. here I am using gssg queue which is same as above.</p><pre><code class="language-rust">extern crate execute;
+use std::process::Command;
+use execute::Execute;
+
+use faktory::ConsumerBuilder;
+use std::io;
+
+
+fn main() {
+    let mut c = ConsumerBuilder::default();
+    c.register(&quot;gssg&quot;, |job| -&gt; io::Result&lt;()&gt; {
+        println!(&quot;{:?}&quot;, job);
+
+        const GSSG_PATH: &amp;str = &quot;/home/myuser/static-ghost/deploy/update-blog.sh&quot;;
+        let mut command = Command::new(GSSG_PATH);
+        let output = command.execute_output().unwrap();
+        if let Some(exit_code) = output.status.code() {
+            if exit_code == 0 {
+                println!(&quot;Ok.&quot;);
+                Ok(())
+            } else {
+                eprintln!(&quot;Failed.&quot;);
+                Ok(())
+            }
+        } else {
+            eprintln!(&quot;Interrupted!&quot;);
+            Ok(())
+        }
+    });
+
+    let mut consumer = c.connect(Some(FAKTORY_URL)).unwrap();
+
+    if let Err(e) = consumer.run(&amp;[&quot;default&quot;]) {
+        println!(&quot;worker failed: {}&quot;, e);
+    }
+
+}</code></pre><p>updating blog via gssg</p><pre><code class="language-bashscript"> #!/bin/bash
+
+    rm -rf /home/myuser/github-user.github.io
+
+    cd /home/myuser
+    git clone git@github.com:github-user/github-user.github.io.git
+
+    cd /home/myuser/github-user.github.io
+    git pull
+    rm -rf /home/myuser/github-user.github.io/docs
+
+    /home/myuser/.npm-global/bin/gssg --dest /home/myuser/github-user.github.io/docs --domain http://local-ip:2368 --url https://mydomain.com
+
+    echo &quot;mydomain.com&quot; &gt; /home/myuser/github-user.github.io/docs/CNAME
+    echo &quot;blog.mydomain.com&quot; &gt;&gt; /home/myuser/github-user.github.io/docs/CNAME
+    echo &quot;www.mydomain.com&quot; &gt;&gt; /home/myuser/github-user.github.io/docs/CNAME
+
+    git config user.name &quot;My Name&quot;
+    git config user.email &quot;my@email.com&quot;
+
+    date &gt; updated_at
+
+    git add .
+    git commit -m &quot;updated on `date +&apos;%Y-%m-%d %H:%M:%S&apos;`&quot;
+    git commit --amend --author=&quot;My Name &lt;my@email.com&gt;&quot; --no-edit
+
+    git push -f</code></pre>]]></content:encoded></item><item><title><![CDATA[harbor on k3s]]></title><description><![CDATA[Deploying harbor arm64 registry to raspberry pi k3s cluster]]></description><link>https://jaigouk.com/deploying-harbor/</link><guid isPermaLink="false">624ecb2f9001de766d023bcd</guid><category><![CDATA[tools]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 03 Apr 2021 01:30:19 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/04/harbor-on-rpi-cluster-2.png" alt="harbor on k3s"><p>update(2022): I don&apos;t use harbor anymore with my local k3s cluster. instead, I am just using registry ui with private registry.</p><p></p><p>It took some time to find a simple and easy way to deploy registry with UI to my rpi k3s cluster. The official repo does not provide arm64 images and it requires high memory. I found a way to deploy harbor on my rpi 4 cluster.<br></p><!--kg-card-begin: markdown--><pre><code class="language-sh">git clone https://github.com/querycap/harbor.git
+cd harbor
+make dep
+cd components/harbor
+</code></pre>
+<h2 id="edit-cue-files">edit cue files</h2>
+<p>app.cue file</p>
+<pre><code class="language-json">package harbor
+
+import (
+	harbor &quot;github.com/goharbor/harbor-helm:chart&quot;
+)
+
+{
+	apiVersion: &quot;octohelm.tech/v1alpha&quot;
+	kind:       &quot;Release&quot;
+	metadata: namespace: &quot;harbor-system&quot;
+	metadata: labels: context: &quot;default&quot;
+	#name:      &quot;harbor&quot;
+	#namespace: &quot;harbor-system&quot;
+	#context:   *&quot;hw-sg&quot; | string
+</code></pre>
+<p>values.cue file</p>
+<p>change the tag based on <a href="https://github.com/orgs/querycap/packages/container/package/harbor%2Fharbor-portal">querycap`s harbor/harbor-portal</a></p>
+<pre><code class="language-json">package harbor
+
+#values: {
+	host:          *&quot;harbor.example.io&quot; | string
+	adminPassword: *&quot;xxxxxx&quot; | string
+
+	image: repo: &quot;ghcr.io/querycap/harbor&quot;
+	image: tag:  &quot;ec0ba11&quot;
+}
+
+</code></pre>
+<p>install <a href="https://cuelang.org/docs/integrations/json/">cue</a> and deploy</p>
+<pre><code class="language-sh">go install cuelang.org/go/cmd/cue@latest
+
+cuem k show commponents/harber &gt; result.yaml
+
+# edit result.yaml
+
+kubectl apply -f result.yaml
+
+</code></pre>
+<p><img src="https://files.jaigouk.com/2021/04/harbor-on-kubenetes.png" alt="harbor on k3s" loading="lazy"></p>
+<h2 id="dex-oidc">dex OIDC</h2>
+<p>To make harbor more secure, I installed <a href="https://github.com/dexidp/dex">dex</a></p>
+<p>here are the links for installing it</p>
+<ul>
+<li><a href="https://dexidp.io/docs/kubernetes/">https://dexidp.io/docs/kubernetes/</a></li>
+<li><a href="https://github.com/dexidp/dex/blob/master/examples/k8s/dex.yaml">https://github.com/dexidp/dex/blob/master/examples/k8s/dex.yaml</a></li>
+<li><a href="https://goharbor.io/docs/1.10/administration/configure-authentication/oidc-auth/">https://goharbor.io/docs/1.10/administration/configure-authentication/oidc-auth/</a></li>
+</ul>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[work env in covoid19 erra]]></title><description><![CDATA[<p>In these days, I stay at home most of the time and still I wish to change atmosphere, so I move room to room. When I do that, I use my android tablet. </p><p>old macbook air(2011 mid version) is a thin client which is running manjaro and I use</p>]]></description><link>https://jaigouk.com/work-env-in-covoid19-erra/</link><guid isPermaLink="false">624ecb2f9001de766d023bc9</guid><category><![CDATA[life]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 23 Mar 2021 21:57:00 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/03/tablet-env.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/03/tablet-env.jpg" alt="work env in covoid19 erra"><p>In these days, I stay at home most of the time and still I wish to change atmosphere, so I move room to room. When I do that, I use my android tablet. </p><p>old macbook air(2011 mid version) is a thin client which is running manjaro and I use it with rpi. rpi is running code-server, ssh, etc. macbook is for keyboard, monitor, web browser. ssh env with port forward is used for coding env. with wireguard setup, code-server and nvim is accesible from anywhere. Most of iPad users are using code-server but I am using Samsung Galaxy Tab S6 lite for that purpose. And the tablet is also for taking notes during meetings.</p><p><a href="https://www.gl-inet.com/products/gl-ar750s/">Gl inet s750 slate</a>(Openwrt) + 8GB rpi + usb ssd &#xA0;is quite nice combination. I just put it in my bag with a power bank and then I am ready to use them remotely.</p>]]></content:encoded></item><item><title><![CDATA[istio]]></title><description><![CDATA[Istio service mesh on k3s rpi 4 cluster]]></description><link>https://jaigouk.com/istio/</link><guid isPermaLink="false">624ecb2f9001de766d023bcb</guid><category><![CDATA[Architecture]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 23 Mar 2021 21:08:08 GMT</pubDate><media:content url="https://files.jaigouk.com/2021/03/0AEE36BA-012D-4BB7-A3A2-492DB418840A.jpeg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2021/03/0AEE36BA-012D-4BB7-A3A2-492DB418840A.jpeg" alt="istio"><p>notes while reading &quot;istio in action&quot;</p><!--kg-card-begin: markdown--><blockquote>
+<p>A service mesh is a distributed application infrastructure that is responsible for handling network traffic on behalf of the application in a transparent, out of process manner.<br>
+The service proxies form the &quot;data plane&quot; through which all traffic is handled and observed. The data plane is responsible for establishing, securing, and controlling the traffic through the mesh. The management components that instruct the data plane how to behave is known as the &quot;control plane&quot;. The control plane is the brains of the mesh and exposes an API for operators to manipulate the network behaviors. Together, the data plane and the control plane provide important capabilities necessary in any cloud-native architecture</p>
+</blockquote>
+<p><img src="https://files.jaigouk.com/2021/03/Screenshot_20210323-000033_Moon--Reader-Pro.jpg" alt="istio" loading="lazy"></p>
+<p><img src="https://files.jaigouk.com/2021/03/Screenshot_20210323-003057_Moon--Reader-Pro.jpg" alt="istio" loading="lazy"></p>
+<!--kg-card-end: markdown--><!--kg-card-begin: markdown--><p>For helm v3.2.4 and k3s arm64 env,</p>
+<pre><code class="language-sh">helm repo add querycapistio https://querycap.github.io/istio
+kubectl create namespace istio-operater
+helm upgrade --install istio-operater querycapistio/istio-operator
+</code></pre>
+<p>output</p>
+<pre><code class="language-sh">Release &quot;istio-operater&quot; has been upgraded. Happy Helming!
+NAME: istio-operater
+LAST DEPLOYED: Fri Mar 26 17:43:16 2021
+NAMESPACE: default
+STATUS: deployed
+REVISION: 4
+TEST SUITE: None
+</code></pre>
+<p>for k3s, make sure traefik is not running</p>
+<pre><code>k3sup install --ip  xx.xx.xx.xx \
+        --user my_user \
+        --ssh-key ~/.ssh/my_key \
+        --ssh-port 22  \
+        --k3s-extra-args &quot;--disable traefik&quot;
+
+# ssh to the server 
+sudo rm /var/lib/rancher/k3s/server/manifests/traefik.*
+
+k3sup join --server-ip xx.xx.xx.xx \
+        --ip yy.yy.yy.yy \
+        --user my_user \
+        --ssh-key ~/.ssh/my_key \
+        --ssh-port 22
+</code></pre>
+<p>use <a href="https://github.com/querycap/istio/tree/master/deploy/istio-system">istio-system</a> directory to deploy via <a href="https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/">kustomize</a></p>
+<pre><code class="language-sh">kubectl apply -k &lt;kustomization_directory&gt;
+</code></pre>
+<p>after this, manually change nodeAffinity in deployment. remove other arch values and change value to arm64 for istio-ingressgateway  and  istio-egressgateway deployments.</p>
+<pre><code class="language-yaml">      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - arm64
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 2
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
+</code></pre>
+<p><img src="https://files.jaigouk.com/2021/03/istio-deployment.png" alt="istio" loading="lazy"></p>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[Switching between git profiles]]></title><description><![CDATA[<blockquote>Thinking of yourself as a separate entity can reduce anxiety, while also kicking up some major benefits for your confidence and determination. - David Robson, BBC.com</blockquote><p>This article(<a href="https://lsa.umich.edu/psych/news-events/all-news/faculty-news/the--batman-effect---how-having-an-alter-ego-empowers-you.html">The &apos;Batman Effect&apos;: How having an alter ego empowers you</a>) was featured on HN best. It would be more</p>]]></description><link>https://jaigouk.com/switching-between-git-profiles/</link><guid isPermaLink="false">624ecb2f9001de766d023bc8</guid><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 02 Mar 2019 09:52:00 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/04/batman.jpg" medium="image"/><content:encoded><![CDATA[<blockquote>Thinking of yourself as a separate entity can reduce anxiety, while also kicking up some major benefits for your confidence and determination. - David Robson, BBC.com</blockquote><img src="https://files.jaigouk.com/2022/04/batman.jpg" alt="Switching between git profiles"><p>This article(<a href="https://lsa.umich.edu/psych/news-events/all-news/faculty-news/the--batman-effect---how-having-an-alter-ego-empowers-you.html">The &apos;Batman Effect&apos;: How having an alter ego empowers you</a>) was featured on HN best. It would be more productive for you to have a separate machine and git profile to be more focused on side projects. &#xA0;But maintaining multiple profiles can be painful. Sometimes, it&apos;s easy to switch and commit your codes and push. So, I have my own setup to prevent a situation like that.</p><!--kg-card-begin: markdown--><p>You can automate switching users based on directory.</p>
+<p>For zsh,</p>
+<pre><code class="language-sh">precmd_functions=(switch_git_user)
+switch_git_user() {
+  if [[ $PWD == &quot;$HOME/user/git_repo&quot; ]]; then
+    $HOME/bin/switch hack
+
+    cat ~/.gitconfig
+  fi
+}
+</code></pre>
+<p>with the switch script and precmd above, I can just switch git profile automatically.</p>
+<!--kg-card-end: markdown--><!--kg-card-begin: html--><script src="https://gist.github.com/jaigouk/75fbbeb37f15e860d248ab7a47c32330.js"></script><!--kg-card-end: html-->]]></content:encoded></item><item><title><![CDATA[Serverless Edge Computing]]></title><description><![CDATA[no server. but network.]]></description><link>https://jaigouk.com/serverless-edge-computing/</link><guid isPermaLink="false">624ecb2f9001de766d023bc7</guid><category><![CDATA[ideas]]></category><category><![CDATA[Architecture]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 27 Nov 2018 01:11:03 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/11/apartment-architecture-contemporary-271722.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2018/11/apartment-architecture-contemporary-271722.jpg" alt="Serverless Edge Computing"><p>What happend after I attended kandddinsky conf in October? I found that I got too lazy. I bought Kindle and read DDD Distilled and other books. There were lots of crazy ideas going on in DAG based distributed ledger thingy. And I got interested in edge computing. Yeah, I remember I&apos;ve read the article from HN about Webassembly, But I haven&apos;t gone to the end of the post. Today, I read it again. </p><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-27-at-00.25.14.png" class="kg-image" alt="Serverless Edge Computing" loading="lazy"><figcaption>source: https://hacks.mozilla.org/2018/10/webassemblys-post-mvp-future/</figcaption></figure><p>Fastly launched <a href="https://www.fastlylabs.com/">https://www.fastlylabs.com/</a> recently and I was able to find code snippets that looks familiar to me from Tyler McMullen&apos;s talk about Fastly lab. Well, I guess I don&apos;t need AWS lambda for these any more.</p><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-27-at-00.38.16.png" class="kg-image" alt="Serverless Edge Computing" loading="lazy"></figure><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-27-at-00.41.30.png" class="kg-image" alt="Serverless Edge Computing" loading="lazy"></figure><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-27-at-00.43.46.png" class="kg-image" alt="Serverless Edge Computing" loading="lazy"><figcaption>source: <a href="https://vimeo.com/291584445">&quot;Software Fault Isolation and Edge Computing&quot;</a> Fastly CTO Tyler McMullen</figcaption></figure><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-27-at-00.49.45.png" class="kg-image" alt="Serverless Edge Computing" loading="lazy"><figcaption>source: https://github.com/uTensor/uTensor</figcaption></figure><p>Also, there are cool open source projects out there like noise from Perlin.net.</p><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://files.jaigouk.com/2018/11/perlin-net-noise-chat.gif" class="kg-image" alt="Serverless Edge Computing" loading="lazy"><figcaption>source: https://github.com/perlin-network/noise</figcaption></figure><p>Well, this doesn&apos;t end here. Combined with a tool like intel&apos;s movidius neural compute stick which costs $70 and tinker boards, then you can have something poweful in your hand. As Perlin&apos;s dev team envisioned you can have quantum computing in your palm. Since those companies are doing it as of now. I think &quot;A supercomputer in the palm of your hand.&quot; will happen very soon.</p>]]></content:encoded></item><item><title><![CDATA[Map to the future]]></title><description><![CDATA[<p>in 90&apos;s, mp3 came up. and then lots of mp3 players showed up in the market. but in the end. ipod killed them all. and it evolved to iphone and it changed the world. It&apos;s about connecting dots for meaningful result to customers. And yes, they</p>]]></description><link>https://jaigouk.com/map-to-future/</link><guid isPermaLink="false">624ecb2f9001de766d023bc6</guid><category><![CDATA[ideas]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 26 Nov 2018 13:28:26 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/11/background-boardwalk-clouds-808465.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2018/11/background-boardwalk-clouds-808465.jpg" alt="Map to the future"><p>in 90&apos;s, mp3 came up. and then lots of mp3 players showed up in the market. but in the end. ipod killed them all. and it evolved to iphone and it changed the world. It&apos;s about connecting dots for meaningful result to customers. And yes, they won&apos;t describe the future in detail. You need to live in the future by living on the edge without losing focus. And you need to see those dots and customer&apos;s pain clearly.</p><p><a href="https://www.fastcompany.com/90247240/exclusive-lisa-strausfeld-is-developing-an-entirely-new-kind-of-data-viz">https://www.fastcompany.com/90247240/exclusive-lisa-strausfeld-is-developing-an-entirely-new-kind-of-data-viz</a></p><blockquote>&#x201C;We&#x2019;ve seen this diagram for neural networks, social networks, organizational structures. I&#x2019;ve found these diagrams almost unintelligible. They just convey connectivity and complexity.&#x201D;</blockquote><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://images.fastcompany.net/image/upload/w_596,c_limit,q_auto:best,f_auto/wp-cms/uploads/2018/10/3-what-would-a-google-earth-for-knowledge-look-like.jpg" class="kg-image" alt="Map to the future" loading="lazy"><figcaption>[Image: courtesy Lisa Strausfeld]</figcaption></figure><p>The prototype aims to demystify networks by allowing you to explore them virtually. To use it, you put on a VR headset and enter a three-dimensional timeline that is minimal and neutral on purpose&#x2013;a counterbalance to more cinematic or illustrative VR experiences. Historically important women&#x2019;s lives, drawn from a women&#x2019;s history project at the New School, are visualized along the X axis. Each woman&#x2019;s life stretches through the decades, represented by a long series of rectangles that symbolize years. Faint lines drawn between the women signify connections&#x2013;friendships, correspondences, influences through the years.</p><p></p><p>blue ocean strategy is another one to see the gap.</p><p><a href="https://medium.com/wardleymaps/on-being-lost-2ef5f05eb1ec">wardleymaps</a></p><p><a href="https://medium.com/wardleymaps/on-being-lost-2ef5f05eb1ec">https://medium.com/wardleymaps/on-being-lost-2ef5f05eb1ec</a></p><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-04-at-10.48.26.png" class="kg-image" alt="Map to the future" loading="lazy"></figure><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-04-at-10.51.19.png" class="kg-image" alt="Map to the future" loading="lazy"></figure><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-04-at-10.49.52.png" class="kg-image" alt="Map to the future" loading="lazy"></figure><figure class="kg-card kg-image-card"><img src="https://files.jaigouk.com/2018/11/Screenshot-2018-11-04-at-10.49.07.png" class="kg-image" alt="Map to the future" loading="lazy"></figure>]]></content:encoded></item><item><title><![CDATA[Introducing OpenFaaS to the company]]></title><description><![CDATA[personal experience about spreading openfaas at work]]></description><link>https://jaigouk.com/evangelizing-openfaas-at-work/</link><guid isPermaLink="false">624ecb2f9001de766d023bbc</guid><category><![CDATA[Architecture]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Fri, 07 Sep 2018 16:55:26 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/09/Screen-Shot-2018-09-07-at-16.55.47.png" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2018/09/Screen-Shot-2018-09-07-at-16.55.47.png" alt="Introducing OpenFaaS to the company"><p>My motivations to use openfaas were,</p><ul><li>learning tool for new languages</li><li>getting used to kubernetes</li><li>learn serverless architecture with no cost for aws</li></ul><p>I gave a tech talk to other developers at work with a demo and some people asked me to form a workshop. So, I cloned <a href="https://github.com/openfaas/workshop/">openfaas workshop repo</a> and I got a permission from head of engineering to go through it 1 hour per week. In the beginning there were 17 devs. as time passes, people were not able to attend it because they were simply busy with their work. </p><!--kg-card-begin: html--><script async class="speakerdeck-embed" data-id="d98cffa833d3427c84701ff083f5fd06" data-ratio="1.77777777777778" src="//speakerdeck.com/assets/embed.js"></script><!--kg-card-end: html--><p>Some people followed the lab notes if they were not able to attend the workshop. we have following lab note structure.</p><!--kg-card-begin: markdown--><pre><code>## Lab 5 - Create a Gitbot
+
+[official openfaas lab5 note](https://github.com/openfaas/workshop/blob/master/lab5.md)
+
+
+** feel free to update our notes.**
+
+TOC
+
+1. following the offical lab note
+2. what we learned
+3. ref
+</code></pre>
+<!--kg-card-end: markdown--><p>After 10th workshop session is done, i wanted to push this to the next phase. But there were concerns about openfaas from other devs. It&apos;s still young and people didn&apos;t want to use it for our production environment. But it is ok to use it for internal tools. Not used for production but the impact can be huge based on the problem I tackle. Luckily, head of frontend team was enthusiastic about using openfaas. Because i told him that i was able to write graphql functions that are connected to Neo4j. It needs to be polished but i was able to show the working query. &#xA0;The guy had a real problem. It was about having lots of PRs that are hanging for a long time. The repository is a legacy codes. And people hate to dive into legacy codes. Well, as a &quot;smart developer&quot;, you can find ways to avoid the situation. in the end, the legacy repository ended up with those PRs that are waiting people to review and QA. It&apos;s not about serverless architecture. it&apos;s about code ownership and having a solid CI/CD work process. I suggested him to form a plan to do that. git-ops can be a candidate if it&apos;s well crafted with QA steps.</p><p>There might something I can help. And then I remembered OpenFaaS community is using <a href="https://github.com/alexellis/derek">Derek</a> - a serverless &#x1F916; to manage PRs and issues. </p><!--kg-card-begin: html--><iframe width="560" height="315" src="https://www.youtube.com/embed/ccoeut-Psuw" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe><!--kg-card-end: html--><p>If we add more &quot;pipe lines&quot; that makes sense to the frontend team, then we can use it to improve our daily work process. Yes, I agree that it&apos;s more about people problem. but it will accelerate the plan. Now, I found a chance to use openfaas at work at last. Good thing about my situation is that our backend will be broken into services and we&apos;re going to use kafka as our message queue. And it&apos;s possible to launch openfaas function with kafka-connector. (<a href="https://docs.openfaas.com/reference/triggers/">you can trigger your functions via sns, rabbit mq and cloud events too</a>) </p><p>People will see it working and feel good about derek and automation for chores. If people start to add more features or functions then they might want to replicate the experience for production environment. we can do it with &quot;stable&quot; service like aws lambda in the beginning but it will cost money. then openfaas is a good option. isn&apos;t it?</p>]]></content:encoded></item><item><title><![CDATA[Message queues]]></title><description><![CDATA[Nats vs Kafka vs etc. comparing message queues]]></description><link>https://jaigouk.com/message-queues/</link><guid isPermaLink="false">624ecb2f9001de766d023bbb</guid><category><![CDATA[Architecture]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sun, 02 Sep 2018 00:25:29 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://files.jaigouk.com/2018/09/abstract-arrows-blur-394377.jpg" alt="Message queues"><p>Message queues are the backbone of your services.</p>
+<p>If you have gone through MVP and passed the monolithic situation, you are probably thinking about something has to be done. There are lots of problems on the table. Especially, your organization has grown more than 15 devs, then it&apos;s possible that they want to use python for ML, golang for infrastructure, elixir for graphql api endpoint, etc. There are various ways to make it happen. grpc can be 1 possibility. Or, you can use message ques. After booming of mobile apps and IOT, the server side should be scalable and maintainable. And it&apos;s true that you can&apos;t just stick with 1 programming language and treat it as a silver bullet. Docker was the answer to that chaos and kubernetes is the winning orchestration tool. still, you need to figure out how to break things down and put them in kubernetes. Openfaas is using Nats-streaming and there are <a href="https://docs.openfaas.com/reference/triggers/">multiple options(kafka, aws sns, CloudEvents, RabbitMQ)</a> to trigger your serverless functions.</p>
+<p>While investigating message queue options out there, I found that <a href="https://www.confluent.io/blog/publishing-apache-kafka-new-york-times/">Kafka is used at NYT</a> and usually have more scores on HN.</p>
+<!--kg-card-end: markdown--><!--kg-card-begin: html--><script async class="speakerdeck-embed" data-id="84923a1b878a4b34aec2ff4f923a7ef2" data-ratio="1.77777777777778" src="//speakerdeck.com/assets/embed.js"></script><!--kg-card-end: html--><!--kg-card-begin: markdown--><p>I found that openfaas is a good example for using Nats Streaming. FAQ doc says it supports memory or data store for messages.</p>
+<p><img src="https://files.jaigouk.com/2018/09/Screen-Shot-2018-09-01-at-15.18.20.png" alt="Message queues" loading="lazy"></p>
+<p>And openfaas is using in memory store for messages. the following snippet is from openfaas&apos; <a href="https://github.com/openfaas/faas/blob/master/docker-compose.yml#L76">docker-compose.yml</a> file. you can find kubernetes config from <a href="https://github.com/openfaas/faas-netes/blob/master/yaml/nats-dep.yml">here</a></p>
+<pre><code class="language-yaml">nats:
+    image: nats-streaming:0.6.0
+    # Uncomment the following port mappings if you wish to expose the
+    # NATS client and/or management ports
+    # ports:
+    #     - 4222:4222
+    #     - 8222:8222
+    command: &quot;--store memory --cluster_id faas-cluster&quot;
+    networks:
+        - functions
+    deploy:
+        resources:
+            limits:
+                memory: 125M
+            reservations:
+                memory: 50M
+        placement:
+            constraints:
+                - &apos;node.platform.os == linux&apos;
+</code></pre>
+<p>I wanted to &quot;replay&quot; messages if something goes wrong. and then I found this comment from this <a href="https://github.com/openfaas/nats-queue-worker/pull/17#issuecomment-377000157">PR in nats-queue-worker</a></p>
+<blockquote>
+<p>If you use a NATS Streaming server with memory store, it is true that if the server is restarted, since no state is being restored, the previously &quot;connected&quot; clients will stop receiving messages. Publishers would fail too since the server would reject published messages for unknown client IDs.<br>
+The streaming server and streaming clients communicate through some inboxes. When the Streaming server is restarted, since it lost that knowledge, it can&apos;t communicate with existing clients. Moreover, even internal subjects used to communicate between the server and its clients contain a unique id that won&apos;t be the same after the restart).</p>
+</blockquote>
+<blockquote>
+<p>Note: If the NATS Streaming server connects to a non-embedded NATS Server, then if the NATS Server itself is restarted, that is fine, the client library&apos;s use of the underlying NATS connection will reconnect and everything would work fine (some timeout may occur for the operations that were inflight when the NATS server was restarted). This is because the Streaming server would still be running and its state maintained, so the communication can continue.</p>
+</blockquote>
+<p>Now, I am curious if I change openfaas&apos; nats-streaming config with PV like <a href="https://github.com/canhnt/k8s-nats-streaming/blob/master/charts/nats-streaming-ft/templates/pv.yaml">this</a>, then will openfaas fetch the previous messages even though the streaming server is down or nats-queue-worker is restarted? I will play with it and write the following up article.</p>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[OpenFaaS on IBM Cloud]]></title><description><![CDATA[Do you need a free kubernetes env for playing with openfaas? ]]></description><link>https://jaigouk.com/openfaas-on-free-kubernetes/</link><guid isPermaLink="false">624ecb2f9001de766d023bba</guid><category><![CDATA[devops]]></category><category><![CDATA[posts]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Fri, 24 Aug 2018 11:54:18 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/08/cost-lite-cluster-month.png" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><h1 id="openfaasonkubernetescheapestoptions">Openfaas on Kubernetes - cheapest options</h1>
+<img src="https://files.jaigouk.com/2018/08/cost-lite-cluster-month.png" alt="OpenFaaS on IBM Cloud"><p><strong>update(3 Sep 2018)</strong> : updated installing openfaas on local kube part.</p>
+<p><strong>Update(26 Aug 2018)</strong> : I talked with Alex. He told me, &quot;A single node on DigitalOcean with 4GB RAM should be quite cost effective, same with Scaleway using kubeadm. Minikube on your own system is also a good option or with Docker for Mac. (EKS is not cheap) - GKE might be one of the cheaper managed options&quot;</p>
+<p>There are many options to use openfaas. Mainly, docker swarm or kubernetes. Kubernetes formed into <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a>. They also have <a href="https://github.com/cncf/curriculum">exam materials</a> for <a href="https://github.com/walidshaari/Kubernetes-Certified-Administrator">certified admin</a> / dev. There are still lots of companies out there using docker swarm as their container orchestration tool. But the trend clearly shows us that kubernetes won the battle. CNCF is the result. It&apos;s explicit and configurable. But the problem is installing and maintaining kubernetes on AWS is quite complicated. it takes some time to get used to all setup. With digitalocean, it&apos;s fairly easy compare to aws. And after september of 2018, they would release kubernetes as a service. At this point, the pricing page is not there. They might charge it based on droplets.</p>
+<p>Then, what would be the optiono to get used to openfaas on kubernetes without spending any money? There are 2 options. local setup and ibm cloud. There are pros and cons. With local setup, it will eat up your resource. And you would not be able to show what you&apos;ve been playing to other people. As long as you have enough resource, then this is ok. With IBM cloud, you need to switch to pay as you go plan. basically, you need to give them your credit card number. but the &quot;lite&quot; plan doesn&apos;t charge you for it. 4GB ram. and it expires in a month. And you can&apos;t use ingress. just NodePort. Public IP exists.</p>
+<p>The ugly part of serverless thingy is the hidden cost as described <a href="https://medium.com/coryodaniel/from-erverless-to-elixir-48752db4d7bc">here</a>. Openfaas can limit the maximum cost while having the scalability. You have the control. No vendor lock in.</p>
+<h2 id="option1openfaasonlocalkuberneres">Option1. Openfaas on local kuberneres</h2>
+<p>I assume you&apos;re using OS X.</p>
+<pre><code class="language-sh">brew install kubernetes-cli
+brew install kubectx
+</code></pre>
+<p>Install kubernetes and dashboard by following this <a href="https://github.com/kubernetes/dashboard/wiki/Accessing-Dashboard---1.7.X-and-above#api-server">github wiki page</a></p>
+<pre><code class="language-sh">kubectl config set-context docker-for-desktop
+kubectl config use-context docker-for-desktop
+kubectx
+kubectl get all
+kubectl cluster-info
+kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+
+kubectl describe services kubernetes-dashboard --namespace=kube-system
+kubectl -n kube-system edit service kubernetes-dashboard
+# edit .spec.type to NodePort
+sudo kubectl proxy
+</code></pre>
+<p>visit <a href="http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/">the local dashboard</a></p>
+<p>get your token to login to the dashboard</p>
+<pre><code class="language-sh">kubectl create serviceaccount jaigouk
+kubectl get serviceaccounts jaigouk -o yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  # ...
+secrets:
+- name: jaigouk-token-1yvwg
+kubectl get secret jaigouk-token-6dztl -o yaml
+
+echo xxxxx== | base64 --decode
+</code></pre>
+<p>install openfaas</p>
+<p>The faas-netes controller is the most tested, stable and supported version of the OpenFaaS integration with Kubernetes. In contrast the OpenFaaS Operator is based upon the codebase and features from faas-netes, but offers a tighter integration with Kubernetes through CustomResourceDefinitions. This means you can type in kubectl get functions for instance.</p>
+<pre><code class="language-sh">kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml
+
+helm repo add openfaas https://openfaas.github.io/faas-netes/
+
+helm repo update \
+ &amp;&amp; helm upgrade openfaas --install openfaas/openfaas \
+    --namespace openfaas  \
+    --set functionNamespace=openfaas-fn \
+    --set operator.create=true
+
+# generate a random password
+export GW_PASS=$(head -c 16 /dev/random |shasum | cut -d &apos; &apos; -f1)
+
+kubectl -n openfaas create secret generic basic-auth \
+--from-literal=basic-auth-user=admin \
+--from-literal=basic-auth-password=$GW_PASS
+
+helm upgrade --reuse-values openfaas openfaas/openfaas \
+    --set basic_auth=true
+
+# verify it&apos;s running
+kubectl --namespace=openfaas get deployments -l &quot;release=openfaas, app=openfaas&quot;
+
+kubectl proxy
+
+echo $GW_PASS | faas-cli login --gateway=&quot;127.0.0.1:31112&quot; -u admin --password-stdin
+</code></pre>
+<p>visit <a href="http://localhost:31112/ui/">http://localhost:31112/ui/</a><br>
+username is admin and password is $GW_PASS value</p>
+<p>if you have trouble, visit <a href="https://github.com/openfaas/faas-netes/blob/master/chart/openfaas/README.md">https://github.com/openfaas/faas-netes/blob/master/chart/openfaas/README.md</a> for details</p>
+<h2 id="option2usingkubernetesonibmcloud">Option2. Using kubernetes on IBM cloud</h2>
+<p>the IBM cloud gives us free 1 node kubernetes instance that expires in a month. As long as you automated everything then, it wouldn&apos;t be a big problem to play with it. For example, you can try <a href="https://www.youtube.com/watch?v=WYyonInGNsw">&quot;GitLab + OpenFaaS for Serverless CI/CD on Kubernetes&quot;</a>. Check their free versus stand plan features from <a href="https://console.bluemix.net/docs/containers/cs_why.html#cluster_types">this doc</a>.</p>
+<pre><code class="language-sh"># Download and install a few CLI tools and the IBM Kubernetes Service plug-in.
+
+curl -sL https://ibm.biz/idt-installer | bash
+ibmcloud login -a https://api.eu-de.bluemix.net
+ibmcloud cs region-set eu-central
+ibmcloud cs cluster-config gunship
+
+export KUBECONFIG=/Users/$USER/.bluemix/plugins/container-service/clusters/gunship/kube-config-mil01-gunship.yml
+
+kubectl get nodes
+</code></pre>
+<p>let&apos;s deploy openfaas.</p>
+<pre><code class="language-sh">git clone https://github.com/openfaas/faas-netes
+# create name space
+
+kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml
+
+cd faas-netes &amp;&amp; \kubectl apply -f ./yaml
+# memory usage is 327MB
+</code></pre>
+<p>check your cluster&apos;s public ip. visit kubernetes dashboard and find the openfaas namespace. in <code>Discovery and load balancing &gt; Services &gt; gateway</code>, you will be able to see port that is exposed.</p>
+<p>running 2x4(2 CPUs, 4 GB RAM, 100 GB HDD) cluster costs $77.76 for 744 hours(31 days). it&apos;s worth waiting for digital ocean&apos;s kubernetes solution at this point.</p>
+<pre><code class="language-sh">brew install kubernetes-helm
+helm init --canary-image --upgrade
+</code></pre>
+<hr>
+<h2 id="usefultools">Useful tools</h2>
+<h3 id="krex">krex</h3>
+<p>Kubernetes Resource Explorer</p>
+<p><a href="https://github.com/kris-nova/krex">https://github.com/kris-nova/krex</a></p>
+<p>krex in action - tail logs<br>
+<img src="https://files.jaigouk.com/2018/08/krex-in-action1.gif" alt="OpenFaaS on IBM Cloud" loading="lazy"></p>
+<p>krex in action - describe &amp; tail logs<br>
+<img src="https://files.jaigouk.com/2018/08/krex-in-action2.gif" alt="OpenFaaS on IBM Cloud" loading="lazy"></p>
+<p>krex in action - sh into pod<br>
+<img src="https://files.jaigouk.com/2018/08/krex-in-action3.gif" alt="OpenFaaS on IBM Cloud" loading="lazy"></p>
+<pre><code class="language-sh"># installing
+brew install ncurses
+export PKG_CONFIG_PATH=/usr/local/opt/ncurses/lib/pkgconfig
+
+ln -s /usr/local/opt/ncurses/lib/pkgconfig/formw.pc /usr/local/opt/ncurses/lib/pkgconfig/form.pc
+ln -s /usr/local/opt/ncurses/lib/pkgconfig/menuw.pc /usr/local/opt/ncurses/lib/pkgconfig/menu.pc
+ln -s /usr/local/opt/ncurses/lib/pkgconfig/panelw.pc /usr/local/opt/ncurses/lib/pkgconfig/panel.pc
+
+go get -u github.com/kris-nova/krex
+cd $GOPATH/src/github.com/kris-nova/krex
+make all
+</code></pre>
+<h3 id="kubectx">kubectx</h3>
+<p>Fast way to switch between clusters and namespaces in kubectl</p>
+<p><a href="https://github.com/ahmetb/kubectx">https://github.com/ahmetb/kubectx</a></p>
+<p>kubectx in action</p>
+<p><img src="https://github.com/ahmetb/kubectx/raw/master/img/kubectx-demo.gif" alt="OpenFaaS on IBM Cloud" loading="lazy"></p>
+<p>kubens in action</p>
+<p><img src="https://github.com/ahmetb/kubectx/raw/master/img/kubens-demo.gif" alt="OpenFaaS on IBM Cloud" loading="lazy"></p>
+<pre><code class="language-sh"># installing
+brew install kubectx
+</code></pre>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[Running OpenFaaS on Tinkerboard cluster]]></title><description><![CDATA[serverless architecture, microservice, tinker board, OpenFaaS, golang, homelab server]]></description><link>https://jaigouk.com/openfaas-on-tinkerboard-cluster/</link><guid isPermaLink="false">624ecb2f9001de766d023bb9</guid><category><![CDATA[devops]]></category><category><![CDATA[Architecture]]></category><category><![CDATA[posts]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Fri, 16 Feb 2018 17:15:15 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/08/tinker-boards-cluster.jpg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://files.jaigouk.com/2018/08/tinker-boards-cluster.jpg" alt="Running OpenFaaS on Tinkerboard cluster"><p>I wanted to play with serverless architecture but I didn&apos;t want to spend money before I get used to the concept. 1 year ago, I tried to do that and ended up using all credits on aws. What would be the cheaper way to learn it? I have been exploring the options. rpi is good but it only has 1GB ram. And then, I encountered asus tinker board. So, I gave it a shot. I bought 3 tinker boards(ARM-Cortex-A17 4x 1.8GHz, 2GB RAM, WLAN, Bluetooth) and 32GB sd cards and etc. I spend 303 euros.</p>
+<p>I followed Karol Stepniewski&apos;s <a href="http://blog.kars7e.io/2018/01/14/Kubernetes-cluster-on-ARM-using-Asus-Tinkerboard/?utm_content=buffer69682&amp;utm_medium=social&amp;utm_source=twitter.com&amp;utm_campaign=buffer">blog post</a> and <a href="https://github.com/jaigouk/tinker-cluster">forked his repo</a>. I used latest armbian image and Network part was fine opposed to his blog post.</p>
+<p><img src="https://pbs.twimg.com/media/DWKzLBUXkAIBsUf.jpg:large" alt="Running OpenFaaS on Tinkerboard cluster" loading="lazy"></p>
+<p>Now, it&apos;s time to dig into OpenFaaS.</p>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/SwRjPiqpFTk" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe> <!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[raspberry pi zero w for IOT dev env]]></title><description><![CDATA[This is a first part to build a BLE based physical web prototype app.(elixir, nerves-project, physical web, progressive web, IoT, raspberry pi zero w)]]></description><link>https://jaigouk.com/raspberry-pi-zero-w-for-iot-dev-env/</link><guid isPermaLink="false">624ecb2f9001de766d023bb8</guid><category><![CDATA[elixir]]></category><category><![CDATA[ideas]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Sat, 01 Apr 2017 00:22:56 GMT</pubDate><media:content url="https://files.jaigouk.com/2018/08/blink.jpg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><h3 id="motivation">Motivation</h3>
+<img src="https://files.jaigouk.com/2018/08/blink.jpg" alt="raspberry pi zero w for IOT dev env"><p>Recently, I watched google i/o tech talks and I found that progressive web + physical web is quite interesting. I had an idea that i want to play with Bluetooth Low Energy devices. For prototying the idea, I bought a raspberry pi zero w. (yup. this is my second one). Before watching the techtalk, rpi0 meant nothing to me. Because I always wanted to have  powerful small computers that I can make a cluster. Now, it makes sense to play with rpi0w. it&apos;s a good fit for me to play with it to prototype physical web related ideas.</p>
+<h3 id="prep">prep</h3>
+<ul>
+<li>install virtualbox and ubuntu. prepare your disk that is larger than 16GB if it&apos;s a desktop version of ubuntu.</li>
+<li>docker should be up and running locally</li>
+</ul>
+<h3 id="tldr">tl;dr</h3>
+<p>In your <code>mix.exs</code> add <code>rpi0_ble</code></p>
+<pre><code> def deps(&quot;rpi0&quot;) do
+    [{:nerves_runtime, &quot;~&gt; 0.1.0&quot;},
+     {:&quot;nerves_system_rpi0_ble&quot;, github: &quot;jaigouk/nerves_system_rpi0_ble&quot;, tag: &quot;v0.0.4&quot;, runtime: false},
+     {:nerves_interim_wifi, &quot;~&gt; 0.1.0&quot;}]
+  end
+</code></pre>
+<p>burn your sdcard with following commands.</p>
+<pre><code>MIX_TARGET=rpi0 mix deps.get
+MIX_TARGET=rpi0 mix firmware
+#Burn to an SD card with 
+MIX_TARGET=rpi0 mix firmware.burn
+</code></pre>
+<p>the image has <code>iptables, ssh, erlang, node.js, bluez, git, vi, etc</code>. Because it&apos;s for prototyping a ble app and testing it.</p>
+<h3 id="configuretheimage">configure the image</h3>
+<p>I need to customize the default rpi0 because i need to add bluez. I found <a href="https://learn.adafruit.com/install-bluez-on-the-raspberry-pi/overview">this tutorial</a> from adafruit. Since <a href="http://nerves-project.org/">nerves-project</a> is using <a href="https://buildroot.org">buildroot</a>, there must be a way to add the libarary to my rpi0. And then I found <a href="https://delog.wordpress.com/2014/10/29/bluetooth-on-raspberry-pi-with-buildroot/">this blog post</a></p>
+<p><img src="https://pbs.twimg.com/media/C8SMgSYXkAATESg.jpg" alt="raspberry pi zero w for IOT dev env" loading="lazy"></p>
+<p>I referenced <a href="https://speakerdeck.com/joelbyler/nerves-plus-phoenix-saves-a-fathers-sanity">this slide</a> and getting started doc from nerves-project.</p>
+<p>install and download libraries we need</p>
+<pre><code class="language-bash">sudo apt-get install git g++ libssl-dev libncurses5-dev bc m4 make unzip cmake
+git clone git@github.com:nerves-project/nerves-system-br.git
+git clone git@github.com:jaigouk/nerves_system_rpi0_ble.git
+mkdir -p ~/.nerves/cache/buildroot
+nerves_system_br/create-build.sh nerves_system_rpi0_ble/nerves_defconfig ~/.nerves/cache/buildroot
+cd ~/.nerves/cache/buildroot
+</code></pre>
+<p>Now, let&apos;s configure our linux image.</p>
+<ul>
+<li>Select base packages by running <code>make menuconfig</code></li>
+<li>Modify the Linux kernel and kernel modules with <code>make linux-menuconfig</code></li>
+<li>Enable more command line utilities using <code>make busybox-menuconfig</code></li>
+</ul>
+<p><code>make menuconfig</code> will launch gui that helps you to add extra packages. I want to add <code>iptables, git</code></p>
+<pre><code>&#x2502; Prompt: git
+&#x2502;   Location:
+&#x2502;     -&gt; Target packages
+&#x2502;       -&gt; Development tools
+</code></pre>
+<p>iptables</p>
+<pre><code>&#x2502; Prompt: iptables
+&#x2502;   Location:
+&#x2502;     -&gt; Target packages
+&#x2502;       -&gt; Networking applications
+</code></pre>
+<p>open ssh</p>
+<pre><code>&#x2502; Prompt: openssh
+&#x2502;   Location:
+&#x2502;     -&gt; Target packages
+&#x2502;       -&gt; Networking applications
+</code></pre>
+<p>openssl</p>
+<pre><code> Prompt: openssl
+&#x2502;   Location:
+&#x2502;     -&gt; Target packages
+&#x2502;       -&gt; Libraries
+&#x2502;         -&gt; Crypto
+</code></pre>
+<p>you can even find <code>nginx, wireshark,etc</code> in networking applications.</p>
+<p>Run <code>make savedefconfig</code> after <code>make menuconfig</code> to update the nerves_defconfig in your System. it will spit out results like this.</p>
+<pre><code>umask 0022 &amp;&amp; make -C /home/jaigouk/nerves_system_br/buildroot-2016.11.1 O=/home/jaigouk/.nerves/cache/buildroot/. savedefconfig
+  GEN     /home/jaigouk/.nerves/cache/buildroot/Makefile
+</code></pre>
+<p><code>linux-menuconfig</code></p>
+<pre><code>&#x2502; Prompt: Bluetooth Low Energy (LE) features
+&#x2502;   Location:
+&#x2502;     -&gt; Networking support (NET [=y])
+&#x2502;       -&gt; Bluetooth subsystem support (BT [=y])
+</code></pre>
+<p>Run <code>make linux-savedefconfig</code> and <code>cp build/linux-x.y.z/defconfig &lt;your system&gt;</code></p>
+<pre><code>umask 0022 &amp;&amp; make -C /home/jaigouk/nerves_system_br/buildroot-2016.11.1 O=/home/jaigouk/.nerves/cache/buildroot/. linux-savedefconfig
+</code></pre>
+<p>we can add <code>vim, grep, ifconfig, ping, ps, top, free, etc</code> with following command. busybox-menuconfig only works when busybox is enabled.</p>
+<pre><code>make busybox-menuconfig
+</code></pre>
+<p>this is what getstarted doc says.</p>
+<blockquote>
+<p>If your system doesn&#x2019;t contain a custom Linux configuration yet, you&#x2019;ll need to update the Buildroot configuration to point to the new Linux defconfig in your system directory. The path is usually something like <code>$( )/linux-x.y_defconfig</code>.<br>
+For Busybox, the convention is to copy <code>build/busybox-x.y.z/.config</code> to a file in the System repository. Like the Linux configuration, the Buildroot configuration will need to be updated to point to the custom config.</p>
+</blockquote>
+<pre><code>/home/jaigouk/.nerves/cache/buildroot/build/busybox-1.25.1/.config
+</code></pre>
+<p>So I copied <code>defconfig</code> to <code>nerves_system_rpi0_ble/linux-4.4.defconfig</code> and <code>.config</code> to <code>nerves_system_rpi0_ble/nerves_defconfig</code></p>
+<p>now my custom rpi0 config is ready to be used.</p>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[In Berlin]]></title><description><![CDATA[<!--kg-card-begin: markdown--><p>I moved to Berlin 1 month ago. I was curious what it&apos;s like to be in startup eco in Berlin. As a Korean, I heard good things about it. Lots of game companies and devs moved to Germany from South Korea for lots of reasons.</p>
+<p>I talked with</p>]]></description><link>https://jaigouk.com/in-berlin/</link><guid isPermaLink="false">624ecb2f9001de766d023bb7</guid><category><![CDATA[life]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Mon, 06 Mar 2017 00:10:26 GMT</pubDate><media:content url="https://s3.eu-central-1.amazonaws.com/cdn.jaigouk.com/blog-images/berlin.jpg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://s3.eu-central-1.amazonaws.com/cdn.jaigouk.com/blog-images/berlin.jpg" alt="In Berlin"><p>I moved to Berlin 1 month ago. I was curious what it&apos;s like to be in startup eco in Berlin. As a Korean, I heard good things about it. Lots of game companies and devs moved to Germany from South Korea for lots of reasons.</p>
+<p>I talked with my colleagues in Berlin. U.S is not an ideal place for asian tech people to stay any more. Well, especially in these days, Trump is making it worse day by day. On HN, I saw an article that says tech companies in Silicon Valley started to think about relocating to Vancouver. The news about immigrants in U.S is familiar to me. Because I also have gone through those situations when I visited U.S before.</p>
+<p>I hope wealth is more distributed by new political actions. Otherwise, people will not be able to contain their anger.</p>
+<p>Anyways, it has been 1 month in Berlin now. I hope I can meet lots of awesome hackers here.</p>
+<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[reactjs]]></title><description><![CDATA[react.js, frontend]]></description><link>https://jaigouk.com/reactjs/</link><guid isPermaLink="false">624ecb2f9001de766d023bb1</guid><category><![CDATA[frontend]]></category><category><![CDATA[posts]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 18 Oct 2016 21:53:41 GMT</pubDate><media:content url="https://cdn.jaigouk.com/2016/10/macbook-closed.jpeg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://cdn.jaigouk.com/2016/10/macbook-closed.jpeg" alt="reactjs"><p class="subtitle">
+Learn once, write anywhere
+</p>
+<h4 id="motivationtostickwithit">Motivation to stick with it</h4>
+<p>I picked up ruby language in 2008 and I fell in love with it. The philosophy was &quot;Programming languages must feel natural to programmers.&quot; instead of hammering my head to figure out how to write codes in proper way. And that sparked various open source projects. I see the similar thing is happening in JS community. Lots of mobile devs are suffering because of iOS / Angular. React Native is trying to tackle that problem.</p>
+<blockquote>
+It&apos;s worth noting that we&apos;re not chasing &#x201C;write once, run anywhere.&#x201D; Different platforms have different looks, feels, and capabilities, and as such, we should still be developing discrete apps for each platform, but the same set of engineers should be able to build applications for whatever platform they choose, without needing to learn a fundamentally different set of technologies for each. We call this approach &#x201C;learn once, write anywhere.&#x201D;
+<cite>&#x2014; Tom Occhino, &quot;React Native: Bringing modern web techniques to mobile&quot;, Facebook Code Blog, (Mar. 26, 2015)</cite></blockquote>
+<p>It&apos;s expanding beyond web and mobile. VR is the next thing they are working on now.</p>
+<p><img src="https://cdn.jaigouk.com/2016/10/react-vr.png" alt="reactjs" loading="lazy"></p>
+<h4 id="resources">Resources</h4>
+<p><a href="http://reactjsprogram.com/">http://reactjsprogram.com/</a></p>
+<p><a href="https://github.com/transistorsoft/react-native-background-fetch">https://github.com/transistorsoft/react-native-background-fetch</a></p>
+<p>vr related - <a href="https://www.udacity.com/course/vr-developer-nanodegree--nd017">https://www.udacity.com/course/vr-developer-nanodegree--nd017</a></p>
+<!--kg-card-end: markdown-->]]></content:encoded></item></channel></rss>
