@@ -1,4 +1,149 @@
-<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Thu, 09 Jun 2022 15:03:24 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title><![CDATA[Jaigouk.Kim]]></title><description><![CDATA[Let the ideas flow. ]]></description><link>https://jaigouk.com/</link><image><url>https://jaigouk.com/favicon.png</url><title>Jaigouk.Kim</title><link>https://jaigouk.com/</link></image><generator>Ghost 4.42</generator><lastBuildDate>Tue, 19 Jul 2022 07:13:46 GMT</lastBuildDate><atom:link href="https://jaigouk.com/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title><![CDATA[GPT-3 Codex]]></title><description><![CDATA[Programmer's point of view on OpenAI Codex. thinking about 5 years from now.]]></description><link>https://jaigouk.com/gpt-3-codex/</link><guid isPermaLink="false">62d64d3c8ff0384a008c3809</guid><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 19 Jul 2022 07:12:08 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/07/ai.jpeg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/07/ai.jpeg" alt="GPT-3 Codex"><p>When I saw &#xA0;<a href="https://simonwillison.net/2022/Jul/9/gpt-3-explain-code/">&quot;Using GPT-3 to explain how code works&quot;</a> on HN, I was skeptical. Recently, I was able to access OpenAI. So I played with OpenAI&apos;S gpt-3 Codex. It is still in private beta status. But I was surprised by the result. It was quite useful. </p><h2 id="experiment">Experiment</h2><p><a href="https://quii.gitbook.io/learn-go-with-tests/questions-and-answers/http-handlers-revisited">&quot;Go with Test&quot; Gitbook</a> author wrote following steps for code snippets that he will refactor. </p><p>1.Write HTTP responses, send headers, status codes, etc.<br>2.Decode the request&apos;s body into a User<br>3.Connect to a database (and all the details around that)<br>4.Query the database and applying some business logic depending on the result<br>5.Generate a password<br>6.Insert a record</p><p>And here is the result from Codex</p><p>1.check if there is <strong>proper</strong> json body or error<br>2.check if username <strong>already exists </strong>in users datastore, if so, 400<br>3.else insert user right away<br>4.return 200</p><p>The golang code I used:</p><pre><code>// Registration function
+func Registration(w http.ResponseWriter, r *http.Request) {
+    var res model.ResponseResult
+    var user model.User
+
+    w.Header().Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+
+    jsonDecoder := json.NewDecoder(r.Body)
+    jsonDecoder.DisallowUnknownFields()
+    defer r.Body.Close()
+
+    // check if there is proper json body or error
+    if err := jsonDecoder.Decode(&amp;user); err != nil {
+        res.Error = err.Error()
+        // return 400 status codes
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(res)
+        return
+    }
+
+    // Connect to mongodb
+    client, _ := mongo.NewClient(options.Client().ApplyURI(&quot;mongodb://127.0.0.1:27017&quot;))
+    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+    err := client.Connect(ctx)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Disconnect(ctx)
+    // Check if username already exists in users datastore, if so, 400
+    // else insert user right away
+    collection := client.Database(&quot;test&quot;).Collection(&quot;users&quot;)
+    filter := bson.D{{&quot;username&quot;, user.Username}}
+    var foundUser model.User
+    err = collection.FindOne(context.TODO(), filter).Decode(&amp;foundUser)
+    if foundUser.Username == user.Username {
+        res.Error = UserExists
+        // return 400 status codes
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(res)
+        return
+    }
+
+    pass, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+    if err != nil {
+        res.Error = err.Error()
+        // return 400 status codes
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(res)
+        return
+    }
+    user.Password = string(pass)
+
+    insertResult, err := collection.InsertOne(context.TODO(), user)
+    if err != nil {
+        res.Error = err.Error()
+        // return 400 status codes
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(res)
+        return
+    }
+
+    // return 200
+    w.WriteHeader(http.StatusOK)
+    res.Result = fmt.Sprintf(&quot;%s: %s&quot;, UserCreated, insertResult.InsertedID)
+    json.NewEncoder(w).Encode(res)
+    return
+}
+</code></pre><p>And then, I tried the refactored code</p><pre><code>package main
+
+import (
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+    &quot;log&quot;
+    &quot;net/http&quot;
+)
+
+// User represents a person in our system.
+type User struct {
+    Name string
+}
+
+// UserService provides ways of working with users.
+type UserService interface {
+    Register(user User) (insertedID string, err error)
+}
+
+// UserServer provides an HTTP API for working with users.
+type UserServer struct {
+    service UserService
+}
+
+// NewUserServer creates a UserServer.
+func NewUserServer(service UserService) *UserServer {
+    return &amp;UserServer{service: service}
+}
+
+// RegisterUser is a http handler for storing users.
+func (u *UserServer) RegisterUser(w http.ResponseWriter, r *http.Request) {
+    defer r.Body.Close()
+
+    var newUser User
+    err := json.NewDecoder(r.Body).Decode(&amp;newUser)
+
+    if err != nil {
+        http.Error(w, fmt.Sprintf(&quot;could not decode user payload: %v&quot;, err), http.StatusBadRequest)
+        return
+    }
+
+    insertedID, err := u.service.Register(newUser)
+
+    if err != nil {
+        //todo: handle different kinds of errors differently
+        http.Error(w, fmt.Sprintf(&quot;problem registering new user: %v&quot;, err), http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusCreated)
+    fmt.Fprint(w, insertedID)
+}
+
+// MongoUserService provides storage functionality for Users.
+type MongoUserService struct {
+}
+
+// NewMongoUserService creates a new MongoUserService managing connection pools etc probably!.
+func NewMongoUserService() *MongoUserService {
+    //todo: pass in DB URL as argument to this function
+    //todo: connect to db, create a connection pool
+    return &amp;MongoUserService{}
+}
+
+// Register will store a user in mongo.
+func (m MongoUserService) Register(user User) (insertedID string, err error) {
+    // use m.mongoConnection to perform queries
+    panic(&quot;implement me&quot;)
+}
+
+// main function
+func main() {
+    mongoService := NewMongoUserService()
+    server := NewUserServer(mongoService)
+    log.Fatal(http.ListenAndServe(&quot;:8000&quot;, http.HandlerFunc(server.RegisterUser)))
+}
+
+// describe main function and NewUserServer function and RegisterUser 
+// 1.</code></pre><p>1. main function creates a mongo service and a user server<br>2. main function starts a http server and registers the RegisterUser handler<br>3. RegisterUser handler is called when a request is made to the server<br>4. RegisterUser handler calls the UserService to store the user<br></p><p>Of course it is not perfect. You need to express your intensions well enough. But can you imagine the future where Codex is used everywhere? This is more than using Copilot. &quot;Ruby on Rails&quot; became famous in 2000s. Because it was easy to express your thoughts in code and build prototype fast. So lots of startups launched their products quickly and iterated them based on customer insights. From my point of view, Copilot and Codex are helping me to build a product. Soon, it would become like having a senior developer with me. </p><p></p><h2 id="concerns">Concerns</h2><p>Is it encrypted? People think Copilot is evil because open source contributors never agreed on this. </p><figure class="kg-card kg-bookmark-card"><a class="kg-bookmark-container" href="https://sfconservancy.org/blog/2022/jun/30/give-up-github-launch/"><div class="kg-bookmark-content"><div class="kg-bookmark-title">Give Up GitHub: The Time Has Come!</div><div class="kg-bookmark-description">Those who forget history often inadvertently repeat it. Some of us recall that twenty-one years ago, the most popular code hosting site, a fully Free and Open Source (FOSS) site called SourceForge, proprietarized all their code &#x2014; never to make it FOSS again. Major FOSS projects slowly left Source&#x2026;</div><div class="kg-bookmark-metadata"><img class="kg-bookmark-icon" src="https://sfconservancy.org/favicon.ico" alt="GPT-3 Codex"><span class="kg-bookmark-author">Software Freedom Conservancy</span><span class="kg-bookmark-publisher">Denver Gingerich and Bradley M. Kuhn</span></div></div><div class="kg-bookmark-thumbnail"><img src="https://sfconservancy.org/img/GiveUpGitHub.svg" alt="GPT-3 Codex"></div></a></figure><p>On HN this was posted <a href="https://news.ycombinator.com/item?id=31883373">GPT-3 reveals my full name &#x2013; can I do anything?</a></p><blockquote>What&apos;s the current status of Personally Identifying Information and language models? </blockquote><blockquote>I try to hide my real name whenever possible, out of an abundance of caution. You can still find it if you search carefully, but in today&apos;s hostile internet I see this kind of soft pseudonymity as my digital personal space, and expect to have it respected.</blockquote><blockquote>When playing around in GPT-3 I tried making sentences with my username.</blockquote><p>end to end encryption is a must. but more than that, we don&apos;t know that Codex won&apos;t share my data with authorities. It sounds absurd. BUT check out this article.</p><p><a href="https://www.aclu.org/news/privacy-technology/new-records-detail-dhs-purchase-and-use-of-vast-quantities-of-cell-phone-location-data">New documents reveal scale of US Government&#x2019;s cell phone location data tracking</a></p><p>It will take time to have a codex as a commodity. Even for open source version of similar project requires 200GB of GPU ram. That is about 10 RTX 3090 cards. That is heavy budget for solo founders or for small sized companies. And gathering the dataset is also a problem. I guess big companies like OpenAI or Microsoft would not let it go. They will hold it and build high walls to dominate the market.</p><h2 id="the-future">The Future</h2><p>Designing would be something that AI can&apos;t do better than human(not generating mockups like following examples)</p><figure class="kg-card kg-bookmark-card"><a class="kg-bookmark-container" href="https://openai.com/dall-e-2/"><div class="kg-bookmark-content"><div class="kg-bookmark-title">DALL&#xB7;E 2</div><div class="kg-bookmark-description">DALL&#xB7;E 2 is a new AI system that can create realistic images and art from a description in natural language.</div><div class="kg-bookmark-metadata"><img class="kg-bookmark-icon" src="https://openai.com/content/images/size/w256h256/2020/09/icon-1.png" alt="GPT-3 Codex"><span class="kg-bookmark-author">OpenAI</span><span class="kg-bookmark-publisher">OpenAI</span></div></div><div class="kg-bookmark-thumbnail"><img src="https://openai.com/content/images/2022/04/dall-e-2-og.jpg" alt="GPT-3 Codex"></div></a></figure><figure class="kg-card kg-bookmark-card"><a class="kg-bookmark-container" href="https://www.nvidia.com/en-us/studio/canvas/"><div class="kg-bookmark-content"><div class="kg-bookmark-title">NVIDIA Canvas : Harness The Power Of AI</div><div class="kg-bookmark-description">Create Backgrounds Quickly, or Speed up your Concept Exploration.</div><div class="kg-bookmark-metadata"><img class="kg-bookmark-icon" src="https://www.nvidia.com/favicon.ico" alt="GPT-3 Codex"><span class="kg-bookmark-author">NVIDIA</span></div></div><div class="kg-bookmark-thumbnail"><img src="https://www.nvidia.com/content/dam/en-zz/Solutions/studio/canvas/canvas-og-1200-630px.jpg" alt="GPT-3 Codex"></div></a></figure><p>Designing services and digging into customers&apos; pains would be the same. <a href="http://paulgraham.com/ds.html">There are things that don&apos;t scale.</a> </p>]]></content:encoded></item><item><title><![CDATA[Building docker image for rust]]></title><description><![CDATA[there is a way to build docker image for rust]]></description><link>https://jaigouk.com/building-docker-image-for-rust/</link><guid isPermaLink="false">6273b244c78f8949396db4ab</guid><category><![CDATA[rust]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Thu, 05 May 2022 11:28:24 GMT</pubDate><media:content url="https://files.jaigouk.com/2022/05/container-ship.jpg" medium="image"/><content:encoded><![CDATA[<img src="https://files.jaigouk.com/2022/05/container-ship.jpg" alt="Building docker image for rust"><p>In these days, I am playing with rust. </p><p>Before using cargo-chef, it took 30 min to build a image on raspberry pi 4. even with &quot;AS&quot; layers. </p><p>with <a href="https://github.com/LukeMathWalker/cargo-chef">https://github.com/LukeMathWalker/cargo-chef</a>, the intial build time took almost same but after that, building image took 2m 30s. For beefy machines, it would be much faster but building arm64 images on rpi matters to me because I am using k3s env as my homelab deployment environment. </p><pre><code>FROM rust:1.60.0 AS chef
 # We only pay the installation cost once,
 # it will be cached from the second build onwards
 RUN cargo install cargo-chef
@@ -575,18 +720,4 @@ For Busybox, the convention is to copy <code>build/busybox-x.y.z/.config</code> 
 <p>I talked with my colleagues in Berlin. U.S is not an ideal place for asian tech people to stay any more. Well, especially in these days, Trump is making it worse day by day. On HN, I saw an article that says tech companies in Silicon Valley started to think about relocating to Vancouver. The news about immigrants in U.S is familiar to me. Because I also have gone through those situations when I visited U.S before.</p>
 <p>I hope wealth is more distributed by new political actions. Otherwise, people will not be able to contain their anger.</p>
 <p>Anyways, it has been 1 month in Berlin now. I hope I can meet lots of awesome hackers here.</p>
-<!--kg-card-end: markdown-->]]></content:encoded></item><item><title><![CDATA[reactjs]]></title><description><![CDATA[react.js, frontend]]></description><link>https://jaigouk.com/reactjs/</link><guid isPermaLink="false">624ecb2f9001de766d023bb1</guid><category><![CDATA[frontend]]></category><category><![CDATA[posts]]></category><dc:creator><![CDATA[Jaigouk Kim]]></dc:creator><pubDate>Tue, 18 Oct 2016 21:53:41 GMT</pubDate><media:content url="https://cdn.jaigouk.com/2016/10/macbook-closed.jpeg" medium="image"/><content:encoded><![CDATA[<!--kg-card-begin: markdown--><img src="https://cdn.jaigouk.com/2016/10/macbook-closed.jpeg" alt="reactjs"><p class="subtitle">
-Learn once, write anywhere
-</p>
-<h4 id="motivationtostickwithit">Motivation to stick with it</h4>
-<p>I picked up ruby language in 2008 and I fell in love with it. The philosophy was &quot;Programming languages must feel natural to programmers.&quot; instead of hammering my head to figure out how to write codes in proper way. And that sparked various open source projects. I see the similar thing is happening in JS community. Lots of mobile devs are suffering because of iOS / Angular. React Native is trying to tackle that problem.</p>
-<blockquote>
-It&apos;s worth noting that we&apos;re not chasing &#x201C;write once, run anywhere.&#x201D; Different platforms have different looks, feels, and capabilities, and as such, we should still be developing discrete apps for each platform, but the same set of engineers should be able to build applications for whatever platform they choose, without needing to learn a fundamentally different set of technologies for each. We call this approach &#x201C;learn once, write anywhere.&#x201D;
-<cite>&#x2014; Tom Occhino, &quot;React Native: Bringing modern web techniques to mobile&quot;, Facebook Code Blog, (Mar. 26, 2015)</cite></blockquote>
-<p>It&apos;s expanding beyond web and mobile. VR is the next thing they are working on now.</p>
-<p><img src="https://cdn.jaigouk.com/2016/10/react-vr.png" alt="reactjs" loading="lazy"></p>
-<h4 id="resources">Resources</h4>
-<p><a href="http://reactjsprogram.com/">http://reactjsprogram.com/</a></p>
-<p><a href="https://github.com/transistorsoft/react-native-background-fetch">https://github.com/transistorsoft/react-native-background-fetch</a></p>
-<p>vr related - <a href="https://www.udacity.com/course/vr-developer-nanodegree--nd017">https://www.udacity.com/course/vr-developer-nanodegree--nd017</a></p>
 <!--kg-card-end: markdown-->]]></content:encoded></item></channel></rss>
