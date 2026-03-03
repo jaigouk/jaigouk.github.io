@@ -1,0 +1,40 @@
+# Cloudflare Workers Assets Ignore File
+# This file is copied to dist/.assetsignore during build
+# See: https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/
+
+# Dependencies (shouldn't be in dist, but exclude for safety)
+**/node_modules
+**/.pnpm-store
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+**/ehthumbs.db
+
+# Git files (shouldn't be in dist, but exclude for safety)
+**/.git
+**/.gitignore
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.production
+
+# Editor files
+**/.vscode
+**/.idea
+**/*.suo
+**/*.ntvs*
+**/*.njsproj
+**/*.sln
+**/*.sw?
+
+# Temporary files
+**/*.tmp
+**/*.temp
+**/.temp
+
+# Logs
+**/*.log
+**/*.log.*
+

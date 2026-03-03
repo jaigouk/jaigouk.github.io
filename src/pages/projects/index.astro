@@ -1,0 +1,148 @@
+---
+import { getCollection, getEntry, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import { generatePostsListSEO } from '@/utils/seo';
+import { shouldShowContent, sortPostsByDate, isValidDate } from '@/utils/markdown';
+import { hasProjectCategories, getProjectCategories } from '@/utils/categories';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PageLayout from '@/layouts/PageLayout.astro';
+import ProjectCard from '@/components/ProjectCard.astro';
+import ProjectCategories from '@/components/ProjectCategories.astro';
+import Icon from '@/components/Icon.astro';
+
+// Check if projects are enabled and handle fallback
+let fallbackPage = null;
+
+if (!siteConfig.optionalContentTypes.projects) {
+  // Check for fallback page in pages collection
+  try {
+    fallbackPage = await getEntry('pages', 'projects');
+    if (fallbackPage) {
+      // PageLayout will handle the rendering
+    } else {
+      return Astro.redirect('/404');
+    }
+  } catch (error) {
+    // No fallback page found, redirect to 404
+    return Astro.redirect('/404');
+  }
+}
+
+// Get all projects
+const allProjects = await getCollection('projects');
+const isDev = import.meta.env.DEV;
+
+// Filter and sort projects (newest first)
+const visibleProjects = allProjects
+  .filter(project => shouldShowContent(project, isDev))
+  .sort((a, b) => {
+    const dateA = isValidDate(a.data.date) ? a.data.date : new Date(0);
+    const dateB = isValidDate(b.data.date) ? b.data.date : new Date(0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+// Check if any projects have categories and get them
+const projectsHaveCategories = hasProjectCategories(visibleProjects);
+const allCategories = projectsHaveCategories ? getProjectCategories(visibleProjects) : [];
+
+// Get projects page content from special collection
+let projectsPageContent = null;
+let ProjectsPageContent = null;
+
+try {
+  projectsPageContent = await getEntry('special', 'projects');
+  if (projectsPageContent) {
+    const { Content } = await render(projectsPageContent);
+    ProjectsPageContent = Content;
+  }
+} catch (error) {
+  // Fallback to default if projects.md doesn't exist
+}
+
+// Generate SEO data
+const seoData = generatePostsListSEO(import.meta.env.SITE || '', undefined);
+seoData.title = projectsPageContent?.data.title ? `${projectsPageContent.data.title} | ${siteConfig.title}` : `Projects | ${siteConfig.title}`;
+seoData.description = projectsPageContent?.data.description || `Browse all projects on ${siteConfig.title}`;
+seoData.noIndex = (projectsPageContent?.data as any)?.noIndex || false;
+---
+
+{fallbackPage ? (
+  <PageLayout page={fallbackPage as any} />
+) : (
+<BaseLayout seoData={seoData}>
+  <div class="pt-4 pb-8 md:py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 mb-8 md:mb-12" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Page header -->
+      <header class="mb-6 md:mb-8">
+        <h1 class="text-lg font-bold text-primary-900 dark:text-primary-50 mb-3">
+          {projectsPageContent?.data.title || 'Projects'}
+        </h1>
+        {ProjectsPageContent ? (
+          <div class="prose prose-sm dark:prose-dark max-w-none">
+            <ProjectsPageContent />
+          </div>
+        ) : (
+          <p class="text-primary-600 dark:text-primary-300">
+            A collection of my work and side projects
+          </p>
+        )}
+      </header>
+
+      <div class="relative">
+        <!-- Main content -->
+        <div class="max-w-none">
+          {visibleProjects.length > 0 ? (
+            <>
+              <!-- Projects grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 justify-items-center md:justify-items-stretch">
+            {visibleProjects.map((project, index) => (
+              <ProjectCard
+                project={project}
+                eager={index < 4}
+                context="projects"
+                showCategories={projectsHaveCategories}
+              />
+            ))}
+              </div>
+            </>
+          ) : (
+            <div class="text-center py-12">
+              <Icon name="folder-open" class="w-12 h-12 text-primary-300 dark:text-primary-600 mx-auto mb-4" />
+              <h3 class="text-lg font-medium text-primary-900 dark:text-primary-50 mb-2">
+                No projects yet
+              </h3>
+              <p class="text-primary-600 dark:text-primary-300">
+                Check back soon for new projects!
+              </p>
+            </div>
+          )}
+        </div>
+
+        <!-- Mobile sidebar - appears below content on mobile/tablet -->
+        <div class="xl:hidden mt-12 space-y-6">
+          <!-- Categories -->
+          {projectsHaveCategories && allCategories.length > 0 && (
+            <ProjectCategories categories={allCategories} />
+          )}
+        </div>
+
+        <!-- Desktop sidebar - floats to the right of the content container -->
+        <div class="hidden xl:block absolute top-0 left-full ml-8 w-64 h-full">
+          <div class="sticky top-24 pb-6 overflow-x-hidden overflow-y-auto" id="categories-sidebar" style="max-height: 60vh;">
+            <!-- Categories -->
+            {projectsHaveCategories && allCategories.length > 0 && (
+              <ProjectCategories categories={allCategories} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+)}
+
+<Fragment slot="scripts">
+  <script>
+    // No complex height calculation needed - using fixed max-height in CSS
+  </script>
+</Fragment>

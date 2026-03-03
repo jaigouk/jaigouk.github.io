@@ -1,0 +1,141 @@
+---
+import type { ImageInfo } from '@/types';
+import { processImageLayout } from '@/utils/images';
+import Icon from './Icon.astro';
+import ImageWrapper from './ImageWrapper.astro';
+
+export interface Props {
+  images: ImageInfo[];
+  layout?: 'single' | 'grid-2' | 'grid-3' | 'grid-4' | 'auto';
+}
+
+const { images, layout = 'auto' } = Astro.props;
+
+// Process layout if auto
+const processedLayout = layout === 'auto' ? processImageLayout(images) : { layout, images };
+const { layout: finalLayout, images: finalImages } = processedLayout;
+---
+
+{finalImages.length > 0 && (
+  <div class={`image-gallery ${finalLayout} my-8`}>
+    {finalImages.map((image, index) => (
+      <div class="image-item">
+        <button 
+          class="image-button w-full h-full group cursor-pointer"
+          data-image-index={index}
+          data-lightbox="gallery"
+          aria-label={`View ${image.alt} in full size`}
+        >
+          <ImageWrapper
+            src={image.src}
+            basePath="/posts/attachments/"
+            alt={image.alt}
+            class="w-full h-full rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:scale-[1.02]"
+            width={600}
+            height={400}
+            format="webp"
+            quality={85}
+            loading="lazy"
+          />
+          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 rounded-lg flex items-center justify-center">
+            <Icon name="zoom-in" class="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+        </button>
+      </div>
+    ))}
+  </div>
+)}
+
+<style>
+  .image-gallery {
+    @apply grid gap-4;
+  }
+  
+  .image-gallery.single {
+    @apply grid-cols-1;
+  }
+  
+  .image-gallery.grid-2 {
+    @apply grid-cols-2;
+  }
+  
+  .image-gallery.grid-3 {
+    @apply grid-cols-2 sm:grid-cols-3;
+  }
+  
+  .image-gallery.grid-4 {
+    @apply grid-cols-2 sm:grid-cols-3 lg:grid-cols-4;
+  }
+  
+  .image-item {
+    @apply relative overflow-hidden aspect-video;
+  }
+  
+  .image-button {
+    @apply relative block;
+  }
+  
+  /* Responsive adjustments - maintain side-by-side layout on mobile */
+  
+  /* Mixed aspect ratios for better layouts */
+  .image-gallery.grid-3 .image-item:first-child {
+    @apply sm:col-span-2;
+  }
+  
+  .image-gallery.grid-4 .image-item:nth-child(4n+1) {
+    @apply aspect-square;
+  }
+  
+  .image-gallery.grid-4 .image-item:nth-child(4n+2) {
+    @apply aspect-[4/3];
+  }
+  
+  .image-gallery.grid-4 .image-item:nth-child(4n+3) {
+    @apply aspect-video;
+  }
+  
+  .image-gallery.grid-4 .image-item:nth-child(4n) {
+    @apply aspect-[3/4];
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const imageButtons = document.querySelectorAll('[data-lightbox="gallery"]');
+    
+    imageButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        const imageIndex = parseInt(button.getAttribute('data-image-index') || '0');
+        
+        // Dispatch custom event to open lightbox
+        const event = new CustomEvent('openLightbox', {
+          detail: { index: imageIndex }
+        });
+        window.dispatchEvent(event);
+      });
+      
+      // Support for press-and-hold on mobile
+      let pressTimer: number;
+      
+      button.addEventListener('touchstart', (e) => {
+        pressTimer = window.setTimeout(() => {
+          e.preventDefault();
+          const imageIndex = parseInt(button.getAttribute('data-image-index') || '0');
+          const event = new CustomEvent('openLightbox', {
+            detail: { index: imageIndex }
+          });
+          window.dispatchEvent(event);
+        }, 500);
+      });
+      
+      button.addEventListener('touchend', () => {
+        clearTimeout(pressTimer);
+      });
+      
+      button.addEventListener('touchmove', () => {
+        clearTimeout(pressTimer);
+      });
+    });
+  });
+</script>

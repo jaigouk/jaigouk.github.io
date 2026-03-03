@@ -1,0 +1,242 @@
+---
+import { siteConfig } from '@/config';
+import Icon from './Icon.astro';
+
+export interface Props {
+  categories: string[];
+  currentCategory?: string;
+  showCount?: boolean;
+  variant?: 'default' | 'outline' | 'minimal';
+}
+
+const { categories, currentCategory, showCount = false, variant = 'default' } = Astro.props;
+
+// Sort categories alphabetically
+const sortedCategories = [...categories].sort();
+---
+
+{sortedCategories.length > 0 && (
+  <div class="categories-container p-4 bg-white dark:bg-primary-900 rounded-xl border border-primary-200 dark:border-primary-700 shadow-lg backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+    <h3 class="font-semibold text-primary-900 dark:text-primary-50 mb-3 flex items-center text-sm">
+      <Icon name="folder-open" class="w-4 h-4 mr-2" />
+      Categories
+    </h3>
+
+    <div class="flex flex-wrap gap-2">
+      {sortedCategories.map(category => (
+        <button
+          data-category={category}
+          class={`category-item inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer ${
+            currentCategory === category
+              ? 'bg-highlight-100 dark:bg-highlight-900/40 text-highlight-800 dark:text-highlight-200 ring-1 ring-highlight-300 dark:ring-highlight-700'
+              : 'bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-700 hover:text-primary-800 dark:hover:text-primary-200'
+          }`}
+        >
+          <span class="category-text">{category}</span>
+          {showCount && (
+            <span class="category-count">
+              {/* This would be populated by JavaScript */}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  </div>
+)}
+
+<style>
+  .category-item {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200;
+  }
+
+  .category-default {
+    @apply bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-700 hover:text-primary-900 dark:hover:text-primary-100;
+  }
+
+  .category-outline {
+    @apply border border-primary-300 dark:border-primary-600 text-primary-600 dark:text-primary-300 hover:border-highlight-500 hover:text-highlight-600 dark:hover:text-highlight-400 hover:bg-highlight-50 dark:hover:bg-highlight-900/20;
+  }
+
+  .category-minimal {
+    @apply text-primary-600 dark:text-primary-300 hover:text-highlight-600 dark:hover:text-highlight-400 hover:bg-primary-100 dark:hover:bg-primary-800;
+  }
+
+  .category-active {
+    @apply bg-highlight-600 text-white shadow-lg;
+  }
+
+  .category-active:hover {
+    @apply bg-highlight-700;
+  }
+
+  .category-count {
+    @apply text-xs opacity-75 bg-white/20 px-1.5 py-0.5 rounded-full;
+  }
+
+  .category-item:hover {
+    /* No scale effect - removed for cleaner look */
+  }
+
+  .category-text {
+    @apply truncate max-w-32;
+  }
+
+  /* Hide project cards - display: none works fine with CSS Grid */
+  /* This class is applied to project cards to hide them while filtering */
+  :global(.project-card-hidden) {
+    display: none;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .category-item {
+      @apply text-xs px-2 py-1;
+    }
+
+  .category-text {
+    @apply max-w-24;
+  }
+}
+</style>
+
+<script>
+  /**
+   * Category Filtering Script for Projects Page
+   * Handles clickable category pills to filter project cards
+   */
+  // Persistent selected categories array - survives re-initializations
+  if (!(window as any).projectSelectedCategories) {
+    (window as any).projectSelectedCategories = [];
+  }
+  
+  function initializeProjectCategoryFiltering() {
+    // Find ALL categories containers (mobile and desktop)
+    const categoriesContainers = document.querySelectorAll('.categories-container');
+    if (categoriesContainers.length === 0) {
+      return;
+    }
+    
+    const projectCards = document.querySelectorAll('[data-project-categories]');
+    // Use persistent array for multi-select support
+    const selectedCategories = (window as any).projectSelectedCategories as string[];
+
+    // Helper function to update all button states across all containers
+    function updateAllButtonStates() {
+      categoriesContainers.forEach(container => {
+        const categoryItems = container.querySelectorAll('.category-item');
+        categoryItems.forEach(btn => {
+          const btnCategory = btn.getAttribute('data-category');
+          const isSelected = btnCategory && selectedCategories.includes(btnCategory);
+          
+          if (isSelected) {
+            btn.classList.remove('bg-primary-100', 'dark:bg-primary-800', 'text-primary-700', 'dark:text-primary-300');
+            btn.classList.add('bg-highlight-100', 'dark:bg-highlight-900/40', 'text-highlight-800', 'dark:text-highlight-200', 'ring-1', 'ring-highlight-300', 'dark:ring-highlight-700');
+          } else {
+            btn.classList.remove('bg-highlight-100', 'dark:bg-highlight-900/40', 'text-highlight-800', 'dark:text-highlight-200', 'ring-1', 'ring-highlight-300', 'dark:ring-highlight-700');
+            btn.classList.add('bg-primary-100', 'dark:bg-primary-800', 'text-primary-700', 'dark:text-primary-300');
+          }
+        });
+      });
+    }
+
+    // Initialize button states on page load (sync all containers)
+    updateAllButtonStates();
+    
+    // Helper function to filter project cards
+    function filterProjectCards() {
+      if (selectedCategories.length === 0) {
+        // No categories selected, show all cards
+        projectCards.forEach(card => {
+          card.classList.remove('project-card-hidden');
+        });
+      } else {
+        // Filter cards based on selected categories
+        projectCards.forEach((card) => {
+          const cardCategories = card.getAttribute('data-project-categories') || '';
+          const categories = cardCategories.split(',').map(c => c.trim());
+          
+          const hasAllSelectedCategories = selectedCategories.every(selectedCat => 
+            categories.includes(selectedCat)
+          );
+          
+          if (hasAllSelectedCategories) {
+            card.classList.remove('project-card-hidden');
+          } else {
+            card.classList.add('project-card-hidden');
+          }
+        });
+      }
+    }
+
+    // Initialize project card visibility on page load
+    filterProjectCards();
+
+    // Initialize event listeners for ALL containers
+    categoriesContainers.forEach(container => {
+      const categoryItems = container.querySelectorAll('.category-item');
+      
+      if (categoryItems.length === 0) {
+        return;
+      }
+
+      // Remove existing event listeners and add new ones
+      categoryItems.forEach((item) => {
+        // Clone the element to remove all event listeners
+        const newItem = item.cloneNode(true) as HTMLElement;
+        item.parentNode?.replaceChild(newItem, item);
+        
+        newItem.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const category = newItem.getAttribute('data-category');
+          
+          // Visual feedback
+          newItem.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            newItem.style.transform = '';
+          }, 150);
+          
+          if (!category) return;
+          
+          // Toggle category in selection array
+          const categoryIndex = selectedCategories.indexOf(category);
+          if (categoryIndex > -1) {
+            // Remove from selection
+            selectedCategories.splice(categoryIndex, 1);
+          } else {
+            // Add to selection
+            selectedCategories.push(category);
+          }
+          
+          // Update ALL button states across ALL containers (mobile and desktop)
+          updateAllButtonStates();
+        
+        // Filter projects - show those matching ALL selected categories (AND logic)
+        filterProjectCards();
+
+        // Dispatch custom event for analytics
+        window.dispatchEvent(new CustomEvent('projectCategoryClicked', {
+          detail: { category, isActive: selectedCategories.includes(category), selectedCategories: [...selectedCategories] }
+        }));
+      });
+    });
+    }); // Close categoriesContainers.forEach
+  }
+
+  // Initialize with multiple strategies to ensure it works
+  function tryInitialize() {
+    initializeProjectCategoryFiltering();
+  }
+
+  // Make function globally available
+  (window as any).initializeProjectCategoryFiltering = initializeProjectCategoryFiltering;
+
+  // Initialize on DOMContentLoaded
+  document.addEventListener('DOMContentLoaded', tryInitialize);
+
+  // Also try after a short delay (for Swup compatibility)
+  setTimeout(tryInitialize, 100);
+  setTimeout(tryInitialize, 500);
+</script>
+

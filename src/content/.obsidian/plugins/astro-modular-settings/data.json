@@ -1,0 +1,253 @@
+{
+  "runWizardOnStartup": true,
+  "currentTemplate": "standard",
+  "currentTheme": "oxygen",
+  "customThemeFile": "custom",
+  "contentOrganization": "file-based",
+  "themeColors": {
+    "mode": "simple",
+    "simpleColors": {
+      "accent": "#5865f2",
+      "background": "#1e1e1e"
+    }
+  },
+  "siteInfo": {
+    "site": "https://astro-modular.netlify.app",
+    "title": "Astro Modular",
+    "description": "A flexible blog theme designed for Obsidian users.",
+    "author": "David V. Kimball",
+    "language": "en",
+    "faviconThemeAdaptive": true,
+    "defaultOgImageAlt": "Astro Modular logo."
+  },
+  "layout": {
+    "contentWidth": "45rem"
+  },
+  "tableOfContents": {
+    "enabled": true,
+    "depth": 4
+  },
+  "footer": {
+    "enabled": true,
+    "content": "© 2025 {author}. Built with the <a href=\"https://github.com/davidvkimball/astro-modular\" target=\"_blank\">Astro Modular</a> theme.",
+    "showSocialIconsInFooter": true
+  },
+  "seo": {
+    "defaultOgImageAlt": "Astro Modular logo."
+  },
+  "navigation": {
+    "showNavigation": true,
+    "style": "traditional",
+    "showMobileMenu": true,
+    "pages": [
+      {
+        "title": "Posts",
+        "url": "/posts/"
+      },
+      {
+        "title": "Projects",
+        "url": "/projects/"
+      },
+      {
+        "title": "Docs",
+        "url": "/docs/"
+      },
+      {
+        "title": "About",
+        "url": "/about/",
+        "children": [
+          {
+            "title": "Privacy Policy",
+            "url": "/privacy-policy/"
+          }
+        ]
+      },
+      {
+        "title": "GitHub",
+        "url": "https://github.com/davidvkimball/astro-modular"
+      }
+    ],
+    "social": [
+      {
+        "title": "X",
+        "url": "https://x.com/davidvkimball",
+        "icon": "x-twitter"
+      },
+      {
+        "title": "GitHub",
+        "url": "https://github.com/davidvkimball",
+        "icon": "github"
+      }
+    ]
+  },
+  "commandPalette": {
+    "enabled": true,
+    "shortcut": "ctrl+K",
+    "placeholder": "Search posts",
+    "search": {
+      "posts": true,
+      "pages": false,
+      "projects": false,
+      "docs": false
+    },
+    "sections": {
+      "quickActions": true,
+      "pages": true,
+      "social": true
+    },
+    "quickActions": {
+      "enabled": true,
+      "toggleMode": true,
+      "graphView": true,
+      "changeTheme": true
+    }
+  },
+  "homeOptions": {
+    "featuredPost": {
+      "enabled": true,
+      "type": "latest",
+      "slug": "getting-started"
+    },
+    "recentPosts": {
+      "enabled": true,
+      "count": 7
+    },
+    "projects": {
+      "enabled": true,
+      "count": 2
+    },
+    "docs": {
+      "enabled": true,
+      "count": 3
+    },
+    "blurb": {
+      "placement": "below"
+    }
+  },
+  "postOptions": {
+    "postsPerPage": 6,
+    "readingTime": true,
+    "wordCount": true,
+    "tags": true,
+    "linkedMentions": {
+      "enabled": true,
+      "linkedMentionsCompact": false
+    },
+    "graphView": {
+      "enabled": true,
+      "showInSidebar": true,
+      "maxNodes": 100,
+      "showOrphanedPosts": true
+    },
+    "postNavigation": true,
+    "showPostCardCoverImages": "featured-and-posts",
+    "postCardAspectRatio": "og",
+    "customPostCardAspectRatio": "2.5/1",
+    "comments": {
+      "enabled": false,
+      "provider": "giscus",
+      "rawScript": "",
+      "repo": "",
+      "repoId": "",
+      "category": "",
+      "categoryId": "",
+      "mapping": "",
+      "strict": "",
+      "reactions": "",
+      "metadata": "",
+      "inputPosition": "",
+      "theme": "",
+      "lang": "",
+      "loading": ""
+    }
+  },
+  "features": {
+    "commandPalette": true,
+    "readingTime": true,
+    "linkedMentions": true,
+    "linkedMentionsCompact": false,
+    "graphView": true,
+    "postNavigation": true,
+    "hideScrollBar": false,
+    "scrollToTop": true,
+    "showSocialIconsInFooter": true,
+    "profilePicture": false,
+    "comments": false,
+    "featureButton": "mode",
+    "showPostCardCoverImages": "featured-and-posts",
+    "postCardAspectRatio": "og",
+    "customPostCardAspectRatio": "2.5/1",
+    "quickActions": {
+      "enabled": true,
+      "toggleMode": true,
+      "graphView": true,
+      "changeTheme": true
+    }
+  },
+  "typography": {
+    "headingFont": "Inter",
+    "proseFont": "Inter",
+    "monoFont": "JetBrains Mono",
+    "fontSource": "local",
+    "fontDisplay": "swap",
+    "customFonts": {
+      "heading": "",
+      "prose": "",
+      "mono": "",
+      "urls": ""
+    }
+  },
+  "optionalFeatures": {
+    "profilePicture": {
+      "enabled": false,
+      "image": "/profile.jpg",
+      "alt": "Profile picture",
+      "size": "md",
+      "url": "",
+      "placement": "footer",
+      "style": "circle"
+    },
+    "comments": {
+      "enabled": false,
+      "provider": "giscus",
+      "rawScript": "",
+      "repo": "",
+      "repoId": "",
+      "category": "",
+      "categoryId": "",
+      "mapping": "",
+      "strict": "",
+      "reactions": "",
+      "metadata": "",
+      "inputPosition": "",
+      "theme": "",
+      "lang": "",
+      "loading": ""
+    }
+  },
+  "deployment": {
+    "platform": "netlify"
+  },
+  "pluginConfig": {
+    "obsidianSettings": {
+      "attachmentLocation": "subfolder",
+      "subfolderName": "attachments"
+    },
+    "astroComposerSettings": {
+      "creationMode": "file",
+      "indexFileName": "index"
+    },
+    "imageInserterSettings": {
+      "valueFormat": "[[attachments/{image-url}]]",
+      "insertFormat": "[[attachments/{image-url}]]"
+    }
+  },
+  "optionalContentTypes": {
+    "projects": true,
+    "docs": true
+  },
+  "availableThemes": "default",
+  "customThemes": "",
+  "customThemeGenerationEnabled": false,
+  "removeRibbonIcon": false
+}

@@ -1,0 +1,1501 @@
+
+/* KaTeX Math Rendering - Must be first */
+@import 'katex/dist/katex.css';
+
+@tailwind base;
+
+/* Immediately override Tailwind preflight border styles for KaTeX */
+@layer base {
+  .katex *,
+  .katex *::before,
+  .katex *::after {
+    border-style: none !important;
+    border-color: transparent !important;
+    border-width: 0 !important;
+  }
+}
+
+@tailwind components;
+@tailwind utilities;
+
+/* KaTeX Theme Integration */
+.katex {
+  font-size: 1.1em;
+  color: rgb(var(--color-foreground));
+}
+
+/* Fix Tailwind border-style conflict with KaTeX table-cell layout */
+/* KaTeX uses table-cell display for vlist elements, and Tailwind sets border-style: solid on all elements */
+/* Combined with KaTeX's border-color: currentColor, this creates visible borders */
+.katex *,
+.katex *::before,
+.katex *::after {
+  border: 0 none transparent !important;
+  border-style: none !important;
+  border-width: 0 !important;
+}
+
+.katex .vlist,
+.katex .vlist-t,
+.katex .vlist-r,
+.katex .vlist-s,
+.katex .vlist > span,
+.katex .vlist > span > span {
+  border: 0 none transparent !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  border-collapse: separate !important;
+}
+
+/* Aggressive fix for equation numbers - covers all possible sources of the strikethrough */
+.katex .eqn-num,
+.katex .tag,
+.katex .eqn-num *,
+.katex .tag * {
+  border: 0 none transparent !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.katex .eqn-num::before,
+.katex .eqn-num::after,
+.katex .tag::before,
+.katex .tag::after {
+  border: 0 none transparent !important;
+  border-style: none !important;
+  border-width: 0 !important;
+  border-color: transparent !important;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Override KaTeX's border-color: currentColor which combines with Tailwind's solid border */
+.katex * {
+  border-color: transparent !important;
+}
+
+/* Fix KaTeX SVG sizing issues - only for specific problematic elements */
+.katex .hide-tail {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.katex .hide-tail svg {
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Hide MathML and show HTML output for visual rendering */
+.katex-mathml {
+  display: none !important;
+}
+
+.katex-html {
+  display: inline-block !important;
+}
+
+
+.katex-display {
+  margin: 1.5rem 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: block;
+}
+
+/* Ensure display math is properly centered and separated */
+.katex-display > .katex {
+  display: inline-block;
+  text-align: initial;
+}
+
+/* KaTeX equation tags (numbers) - ensure proper rendering */
+.katex .tag {
+  position: absolute;
+  right: 0;
+}
+
+/* Aligned equations need proper width for tags */
+.katex .katex-html > .tag {
+  position: relative;
+}
+
+/* Ensure display math blocks are properly separated */
+p:has(.katex-display) {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+/* Handle multiple display math blocks */
+.katex-display + .katex-display {
+  margin-top: 1.5rem;
+}
+
+/* KaTeX in dark mode */
+.dark .katex {
+  color: rgb(var(--color-foreground));
+}
+
+
+
+
+/* KaTeX error styling */
+.katex-error {
+  color: #cc0000;
+  border-color: #cc0000;
+}
+
+.dark .katex-error {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+/* Math in callouts */
+.callout .katex,
+.callout .katex-display {
+  margin: 0.5rem 0;
+}
+
+.callout .katex-display {
+  margin: 1rem 0;
+  text-align: center;
+  display: block;
+}
+
+/* Ensure callout paragraphs with display math are centered */
+.callout p:has(.katex-display) {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+/* Force callout display math to be block-level and centered */
+.callout .katex-display {
+  display: block !important;
+  text-align: center !important;
+  margin: 1rem 0 !important;
+  width: 100% !important;
+}
+
+/* Fix spacing for inline math in callouts */
+.callout p .katex {
+  margin: 0 0.25rem;
+}
+
+
+
+/* CSS Custom Properties - Essential globals only */
+:root {
+  /* Code block colors for light theme */
+  --code-bg: 33 33 33;
+  --code-text: 240 240 240;
+  --inline-code-bg: 240 240 240;
+  --inline-code-text: 33 33 33;
+
+  /* Highlight/selection colors */
+  --selection-bg: 112 135 148;
+}
+
+.dark {
+  /* Code blocks for dark theme */
+  --code-bg: 23 23 23;
+  --code-text: 240 240 240;
+  --inline-code-bg: 55 55 55;
+  --inline-code-text: 240 240 240;
+}
+
+/* Base Styles */
+* {
+  @apply border-primary-200 dark:border-primary-700;
+}
+
+html {
+  scroll-behavior: auto;
+  scroll-padding-top: 2rem;
+}
+
+body {
+  @apply bg-primary-50 dark:bg-primary-900 text-primary-900 dark:text-primary-100;
+  font-family: var(--font-prose, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-display: var(--font-display, swap);
+}
+
+/* Scrollbar Configuration */
+:root {
+  --scrollbar-display: none;
+  --scrollbar-width: none;
+  --scrollbar-ms-overflow: none;
+}
+
+/* Hide scrollbars by default */
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Show minimal modern scrollbars when hideScrollBar is false */
+.show-scrollbars {
+  --scrollbar-display: block !important;
+  --scrollbar-width: auto !important;
+  --scrollbar-ms-overflow: auto !important;
+}
+
+/* Use completely native scrollbars - no custom styling */
+.show-scrollbars ::-webkit-scrollbar,
+body.show-scrollbars ::-webkit-scrollbar {
+  display: block !important;
+  /* Remove all custom width, colors, and styling - use browser defaults */
+}
+
+/* Override the global scrollbar hiding for show-scrollbars */
+.show-scrollbars * {
+  -ms-overflow-style: auto !important;
+  scrollbar-width: auto !important;
+}
+
+/* Firefox-specific scrollbar styling */
+.show-scrollbars,
+body.show-scrollbars,
+html.show-scrollbars {
+  scrollbar-width: auto !important;
+  /* Remove custom colors to use browser default */
+}
+
+/* Force scrollbars to appear in Firefox - but don't interfere with sticky positioning */
+.show-scrollbars {
+  /* Use min-height instead of overflow to force scrollbars without breaking sticky positioning */
+  min-height: 100vh;
+  /* Don't set overflow as it can interfere with sticky positioning */
+  /* overflow: auto !important; */
+}
+
+/* Ensure body and html have scrollbars when needed - but don't interfere with sticky positioning */
+body.show-scrollbars {
+  /* Don't set overflow on body element as it can interfere with sticky positioning */
+  /* overflow: auto !important; */
+}
+
+html.show-scrollbars {
+  /* Don't set overflow on html element as it can interfere with sticky positioning */
+  /* overflow: auto !important; */
+}
+
+/* Selection Colors */
+::selection {
+  background-color: rgb(var(--selection-bg) / 0.2);
+  color: inherit;
+}
+
+::-moz-selection {
+  background-color: rgb(var(--selection-bg) / 0.2);
+  color: inherit;
+}
+
+/* Code block selection - theme independent */
+pre ::selection,
+code ::selection,
+.prose pre ::selection,
+.prose code ::selection,
+pre ::-moz-selection,
+code ::-moz-selection,
+.prose pre ::-moz-selection,
+.prose code ::-moz-selection {
+  background-color: rgba(100, 116, 139, 0.3) !important;
+  color: inherit !important;
+}
+
+/* Focus Styles */
+:focus-visible {
+  @apply outline-2 outline-highlight-500 dark:outline-highlight-400 outline-offset-2;
+}
+
+/* Typography - Dynamic fonts will be applied via CSS custom properties */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
+  line-height: 1.3;
+  color: rgb(var(--color-foreground));
+  font-display: var(--font-display, swap);
+}
+
+/* Links */
+a {
+  @apply text-highlight-600 dark:text-highlight-400 no-underline transition-colors duration-200;
+}
+
+a:hover {
+  @apply text-highlight-700 dark:text-highlight-300 opacity-80;
+}
+
+/* Wikilinks */
+.wikilink {
+  @apply text-highlight-600 dark:text-highlight-400 font-medium no-underline border-b border-dashed border-highlight-500/50 transition-all duration-200;
+}
+
+.wikilink:hover {
+  @apply text-highlight-700 dark:text-highlight-300 opacity-80 no-underline;
+}
+
+/* Ensure wikilink styling applies even inside .prose */
+.prose a.wikilink {
+  @apply text-highlight-600 dark:text-highlight-400 font-medium no-underline border-b border-dashed border-highlight-500/50 transition-all duration-200 !important;
+}
+
+.prose a.wikilink:hover {
+  @apply text-highlight-700 dark:text-highlight-300 opacity-80 no-underline !important;
+}
+
+/* EXCLUDE heading links from wikilink styling */
+.prose h1 a.wikilink,
+.prose h2 a.wikilink,
+.prose h3 a.wikilink,
+.prose h4 a.wikilink,
+.prose h5 a.wikilink,
+.prose h6 a.wikilink,
+.prose h1 a.anchor-link,
+.prose h2 a.anchor-link,
+.prose h3 a.anchor-link,
+.prose h4 a.anchor-link,
+.prose h5 a.anchor-link,
+.prose h6 a.anchor-link {
+  @apply border-none no-underline !important;
+}
+
+.wikilink-broken {
+  @apply text-red-500 cursor-not-allowed line-through no-underline;
+}
+
+/* Code Styles - Working with Tailwind prose plugin */
+
+/* Monospace font support */
+code, pre, .astro-code, kbd, .font-mono {
+  font-family: var(--font-mono, 'JetBrains Mono'), 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-display: var(--font-display, swap);
+}
+
+/* Inline code styling */
+code:not(pre code),
+.prose code:not(pre code) {
+  font-size: 0.875em !important;
+  padding: 0.125rem 0.25rem !important;
+  @apply bg-primary-100 dark:bg-primary-800 text-primary-900 dark:text-primary-100;
+  border-radius: 0.25rem !important;
+}
+
+/* Syntax highlighting (astro-code) */
+.astro-code,
+pre.astro-code {
+  background-color: rgb(var(--code-bg)) !important;
+  color: rgb(var(--code-text)) !important;
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+  overflow-x: auto !important;
+  font-size: 0.875rem !important;
+}
+
+
+.astro-code code,
+pre.astro-code code {
+  background-color: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* Enhanced code block scrolling */
+pre, .prose pre, .astro-code, .prose .astro-code {
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent !important;
+}
+
+/* Show scrollbars on hover for better UX */
+pre:hover, .prose pre:hover,
+.astro-code:hover, .prose .astro-code:hover {
+  scrollbar-color: rgba(156, 163, 175, 0.8) transparent !important;
+}
+
+/* Webkit scrollbar styling for code blocks */
+pre::-webkit-scrollbar, .prose pre::-webkit-scrollbar,
+.astro-code::-webkit-scrollbar, .prose .astro-code::-webkit-scrollbar {
+  height: 8px !important;
+  display: block !important;
+}
+
+pre::-webkit-scrollbar-track, .prose pre::-webkit-scrollbar-track,
+.astro-code::-webkit-scrollbar-track, .prose .astro-code::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+pre::-webkit-scrollbar-thumb, .prose pre::-webkit-scrollbar-thumb,
+.astro-code::-webkit-scrollbar-thumb, .prose .astro-code::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5) !important;
+  border-radius: 4px !important;
+}
+
+pre::-webkit-scrollbar-thumb:hover, .prose pre::-webkit-scrollbar-thumb:hover,
+.astro-code::-webkit-scrollbar-thumb:hover, .prose .astro-code::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.8) !important;
+}
+
+/* Keyboard Shortcuts */
+kbd {
+  @apply inline-flex items-center px-2 py-1 text-xs font-medium bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 border border-primary-300 dark:border-primary-600 rounded shadow-sm;
+}
+
+/* Button Styles - Consolidated */
+.btn {
+  @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer border no-underline;
+  text-decoration: none !important;
+  user-select: none;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  text-decoration: none !important;
+}
+
+.btn:disabled {
+  @apply opacity-50 cursor-not-allowed pointer-events-none;
+}
+
+.btn-primary {
+  @apply bg-highlight-600 dark:bg-highlight-400 text-white dark:text-white border-highlight-600 dark:border-highlight-400;
+  transition: all 0.15s ease-out;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  @apply bg-primary-100 dark:bg-primary-800 text-primary-900 dark:text-primary-100 hover:bg-primary-200 dark:hover:bg-primary-700 border-primary-200 dark:border-primary-700;
+}
+
+.btn-outline {
+  @apply border border-primary-300 dark:border-primary-600 text-primary-900 dark:text-primary-100 hover:bg-primary-50 dark:hover:bg-primary-800 bg-transparent;
+}
+
+.btn-ghost {
+  @apply text-primary-600 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-800 hover:text-primary-900 dark:hover:text-primary-100 border-transparent bg-transparent;
+}
+
+/* Button Groups */
+.btn-group {
+  @apply flex flex-wrap gap-2;
+}
+
+.btn-group-center {
+  @apply flex flex-wrap gap-2 justify-center;
+}
+
+@media (max-width: 640px) {
+  .btn-group {
+    @apply flex-col;
+  }
+  .btn-group .btn {
+    @apply w-full justify-center;
+  }
+}
+
+/* Card Styles */
+.card {
+  @apply bg-white dark:bg-primary-900 border border-primary-200 dark:border-primary-700 rounded-lg shadow-sm;
+}
+
+/* Form Styles */
+input[type="text"],
+input[type="email"],
+input[type="search"],
+textarea {
+  @apply block w-full px-3 py-2 border border-primary-300 dark:border-primary-600 rounded-lg bg-white dark:bg-primary-800 text-primary-900 dark:text-primary-100 placeholder-primary-500 dark:placeholder-primary-400 focus:outline-none focus:ring-2 focus:ring-highlight-500 focus:border-transparent;
+}
+
+.form-sleek {
+  @apply space-y-4;
+}
+
+.form-sleek input,
+.form-sleek textarea {
+  @apply bg-primary-50/50 dark:bg-primary-800/50 border-primary-200/50 dark:border-primary-600/50 backdrop-blur-sm;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in { animation: fadeIn 0.2s ease-in-out; }
+.animate-slide-up { animation: slideUp 0.3s ease-out; }
+.animate-scale-in { animation: scaleIn 0.2s ease-out; }
+
+/* Callout Styles */
+.callout {
+  @apply p-4 my-6 rounded-lg border-l-4;
+}
+
+.callout-title {
+  @apply flex items-center gap-2 font-semibold mb-2;
+}
+
+.callout-icon {
+  @apply w-4 h-4 flex-shrink-0;
+}
+
+.callout-content {
+  @apply text-sm;
+}
+
+.callout-content > *:first-child { @apply mt-0; }
+.callout-content > *:last-child { @apply mb-0; }
+
+.callout-note {
+  @apply bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600;
+}
+.callout-note .callout-title { @apply text-blue-700 dark:text-blue-300; }
+.callout-note .callout-content { @apply text-blue-800 dark:text-blue-200; }
+
+.callout-tip {
+  @apply bg-green-50 dark:bg-green-950/30 border-green-400 dark:border-green-600;
+}
+.callout-tip .callout-title { @apply text-green-700 dark:text-green-300; }
+.callout-tip .callout-content { @apply text-green-800 dark:text-green-200; }
+
+.callout-important {
+  @apply bg-purple-50 dark:bg-purple-950/30 border-purple-400 dark:border-purple-600;
+}
+.callout-important .callout-title { @apply text-purple-700 dark:text-purple-300; }
+.callout-important .callout-content { @apply text-purple-800 dark:text-purple-200; }
+
+.callout-warning {
+  @apply bg-yellow-50 dark:bg-yellow-950/30 border-yellow-400 dark:border-yellow-600;
+}
+.callout-warning .callout-title { @apply text-yellow-700 dark:text-yellow-300; }
+.callout-warning .callout-content { @apply text-yellow-800 dark:text-yellow-200; }
+
+.callout-caution {
+  @apply bg-red-50 dark:bg-red-950/30 border-red-400 dark:border-red-600;
+}
+.callout-caution .callout-title { @apply text-red-700 dark:text-red-300; }
+.callout-caution .callout-content { @apply text-red-800 dark:text-red-200; }
+
+/* Collapsible Callout Styles */
+.callout-collapsible .callout-title {
+  @apply cursor-pointer select-none;
+}
+
+.callout-toggle {
+  @apply ml-auto p-1 rounded transition-colors duration-200;
+  @apply focus:outline-none focus:ring-0;
+}
+
+.callout-toggle-icon {
+  @apply transition-transform duration-200;
+}
+
+.callout-collapsed .callout-toggle-icon {
+  @apply rotate-90;
+}
+
+.callout-content {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.callout-collapsed .callout-content {
+  @apply overflow-hidden;
+}
+
+/* Image Grid Layouts - Auto-detect paragraphs with multiple images */
+
+/* Auto-detect paragraphs with multiple images using :has() */
+.prose p:has(img + img) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  max-width: 100%;
+  width: 100%;
+  transition: grid-template-columns 0.2s ease-in-out;
+}
+
+/* Small tablets and up - maintain 2 columns for multi-image paragraphs */
+@media (min-width: 600px) {
+  .prose p:has(img + img) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Desktop - 3+ columns for paragraphs with 3+ images */
+@media (min-width: 900px) {
+  .prose p:has(img + img + img) {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .prose p:has(img + img + img + img) {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+/* Large desktop - 5+ columns for paragraphs with 5+ images */
+@media (min-width: 1200px) {
+  .prose p:has(img + img + img + img + img) {
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  }
+  .prose p:has(img + img + img + img + img + img) {
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  }
+}
+
+/* Fallback for browsers that don't support :has() - use JavaScript classes */
+.prose .image-grid {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.prose .image-grid-1 {
+  margin: 0.5rem 0;
+}
+
+.prose .image-grid-1 { grid-template-columns: 1fr; }
+.prose .image-grid-2 { grid-template-columns: 1fr 1fr; }
+.prose .image-grid-3 { grid-template-columns: 1fr 1fr; }
+.prose .image-grid-4 { grid-template-columns: 1fr 1fr; }
+.prose .image-grid-5 { grid-template-columns: 1fr 1fr; }
+.prose .image-grid-6 { grid-template-columns: 1fr 1fr; }
+
+@media (min-width: 600px) {
+  .prose .image-grid-1 { grid-template-columns: 1fr; }
+  .prose .image-grid-2 { grid-template-columns: 1fr 1fr; }
+  .prose .image-grid-3 { grid-template-columns: 1fr 1fr; }
+  .prose .image-grid-4 { grid-template-columns: 1fr 1fr; }
+  .prose .image-grid-5 { grid-template-columns: 1fr 1fr; }
+  .prose .image-grid-6 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (min-width: 900px) {
+  .prose .image-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .prose .image-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .prose .image-grid-5 { grid-template-columns: 1fr 1fr 1fr; }
+  .prose .image-grid-6 { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+@media (min-width: 1200px) {
+  .prose .image-grid-5 { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
+  .prose .image-grid-6 { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; }
+}
+
+.prose .image-grid img,
+.prose .image-grid picture {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  margin: 0;
+  display: block;
+  max-width: 100%;
+  min-width: 0; /* Allow images to shrink below their natural size */
+}
+
+/* Ensure images in grids are properly sized */
+.prose .image-grid img {
+  aspect-ratio: 16/9; /* Maintain consistent aspect ratio */
+  object-fit: cover;
+}
+
+/* Image gallery items and buttons */
+.prose .image-grid .image-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+.prose .image-grid .image-button {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.prose .image-grid .image-button:hover {
+  transform: scale(1.02);
+}
+
+.prose .image-grid .image-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.prose .image-grid .image-button:hover img {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Prose Styles */
+.prose {
+  @apply text-primary-700 dark:text-primary-300;
+  font-family: var(--font-prose, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-display: var(--font-display, swap);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  @apply font-semibold text-primary-900 dark:text-primary-50;
+  font-family: var(--font-heading, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  scroll-margin-top: 8rem;
+  font-display: var(--font-display, swap);
+}
+
+.prose h1 { @apply text-xl mt-8 mb-6; }
+.prose h2 { @apply text-lg mt-8 mb-4; }
+.prose h3 { @apply text-base mt-6 mb-3; }
+.prose h4 { @apply text-base mt-5 mb-2; }
+.prose h5 { @apply text-base mt-4 mb-2; }
+.prose h6 { @apply text-base mt-4 mb-2; }
+
+.prose h1 a, .prose h2 a, .prose h3 a, .prose h4 a, .prose h5 a, .prose h6 a {
+  @apply text-primary-900 dark:text-primary-50 no-underline transition-colors duration-200;
+}
+
+.prose h1 a:hover, .prose h2 a:hover, .prose h3 a:hover, .prose h4 a:hover, .prose h5 a:hover, .prose h6 a:hover {
+  @apply text-highlight-600 dark:text-highlight-400 no-underline;
+}
+
+.prose a {
+  @apply text-highlight-600 dark:text-highlight-400 font-medium no-underline transition-colors duration-200;
+}
+
+.prose a:hover {
+  @apply text-highlight-700 dark:text-highlight-300 no-underline;
+}
+
+
+.prose strong {
+  @apply text-primary-900 dark:text-primary-200 font-semibold;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-primary-300 dark:border-primary-600 pl-6 py-2 bg-primary-50 dark:bg-primary-800/30 rounded-lg;
+}
+
+/* Default image styling */
+.prose img {
+  @apply rounded-lg shadow-sm;
+}
+
+/* Obsidian-sized images - respect manual width/height, centered, no cropping */
+.prose img.obsidian-sized {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Ensure manually-sized images in grids don't get forced into grid aspect ratio */
+.prose .image-grid img.obsidian-sized {
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
+/* Prevent gallery styles from affecting obsidian-sized images */
+.prose .image-item img.obsidian-sized,
+.prose .image-button img.obsidian-sized {
+  object-fit: contain !important;
+  aspect-ratio: auto !important;
+}
+
+/* Hide <br> elements after obsidian-sized images to prevent unwanted gaps */
+.prose img.obsidian-sized + br {
+  display: none;
+}
+
+.prose mark {
+  @apply bg-highlight-100 dark:bg-highlight-900/30 text-highlight-800 dark:text-highlight-200 px-1 py-0.5 rounded;
+}
+
+/* Lists */
+.prose ul, .prose ol { @apply my-1; }
+.prose li { @apply my-0; }
+.prose li > p { @apply my-0; }
+.prose ul > li, .prose ol > li { @apply pl-1; }
+
+.prose ul li input[type="checkbox"] { @apply mr-2; }
+
+.prose ul li:has(input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5rem;
+  padding-left: 1.5rem;
+}
+
+.prose > ul.contains-task-list {
+  padding-left: 0 !important;
+}
+
+/* Tables */
+.prose table {
+  @apply border-collapse w-full;
+}
+
+/* Table wrapper styling - high specificity */
+.prose .table-wrapper,
+.table-wrapper {
+  overflow-x: auto !important;
+  overflow-y: hidden !important; /* Maintains rounded corners while allowing horizontal scroll */
+  -webkit-overflow-scrolling: touch;
+  margin: 1.5rem 0 !important;
+  border-radius: 0.75rem !important;
+  @apply border border-primary-300 dark:border-primary-600 bg-white dark:bg-primary-800;
+  position: relative; /* Enable edge hint pseudo-elements */
+}
+
+.table-wrapper table {
+  margin: 0 !important;
+  width: 100%;
+  min-width: 500px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.prose th, .prose td {
+  @apply border-0 border-r border-b border-primary-200 dark:border-primary-600 px-4 py-3;
+  white-space: nowrap;
+  min-width: 100px;
+  transition: background-color 0.2s ease;
+}
+
+.prose th:last-child, .prose td:last-child {
+  @apply border-r-0;
+}
+
+.prose tr:last-child th, .prose tr:last-child td {
+  @apply border-b-0;
+}
+
+.prose th {
+  @apply bg-primary-200 dark:bg-primary-700 font-bold text-primary-900 dark:text-primary-100;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  border-right: none !important; /* No vertical lines between header cells */
+  @apply border-b-2 border-primary-300 dark:border-primary-600; /* Use theme colors for border */
+}
+
+.dark .prose th {
+  border-right: none !important; /* No vertical lines between header cells in dark mode */
+}
+
+/* Alternating rows using dynamic theme colors */
+.prose .table-wrapper table tr:nth-child(even) {
+  @apply bg-primary-50 !important;
+}
+
+.dark .prose .table-wrapper table tr:nth-child(even) {
+  @apply bg-primary-800 !important;
+}
+
+/* Hover using dynamic theme colors */
+.prose .table-wrapper table tr:hover {
+  @apply bg-primary-100 !important;
+}
+
+.dark .prose .table-wrapper table tr:hover {
+  @apply bg-primary-700 !important;
+}
+
+@media (min-width: 768px) {
+  .prose th, .prose td {
+    white-space: normal;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .prose table {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  .prose th, .prose td {
+    @apply px-3 py-2;
+    min-width: 80px;
+  }
+}
+
+/* Utility Classes */
+.text-balance { text-wrap: balance; }
+.text-pretty { text-wrap: pretty; }
+.btn-center { @apply flex justify-center; }
+.btn-left { @apply flex justify-start; }
+.btn-right { @apply flex justify-end; }
+
+/* Theme Transitions */
+:root, html, body, [data-theme], .theme-transition {
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Loading States */
+.loading { @apply animate-pulse; }
+.skeleton { @apply bg-primary-200 dark:bg-primary-700 rounded; }
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  html { scroll-padding-top: 1rem; }
+  .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 { scroll-margin-top: 6rem; }
+  .prose sup a, .prose .footnote-ref, .prose .footnotes, .prose .footnote { scroll-margin-top: 6rem; }
+}
+
+/* Accessibility */
+@media (prefers-contrast: high) {
+  .wikilink { border-bottom-width: 2px; }
+  .btn { @apply border-2; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* Swup Transitions - Simplified */
+.transition-swup-fade {
+  transition: opacity 0.2s ease-out;
+}
+
+/* Page leaving - simple fade out */
+html.is-leaving .transition-swup-fade {
+  opacity: 0;
+}
+
+/* Page entering - simple fade in */
+html.is-animating .transition-swup-fade {
+  opacity: 0;
+}
+
+/* Page ready - final state */
+html.is-ready .transition-swup-fade {
+  opacity: 1;
+}
+
+/* Ensure smooth transitions with hardware acceleration */
+#swup-container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* TOC handling */
+#toc.toc-not-ready {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Smooth transitions for main content */
+main {
+  min-height: calc(100vh - 4rem); /* Account for header height */
+  position: relative;
+}
+
+/* Smooth page transitions */
+/* Keep default scroll-behavior; Swup Scroll Plugin manages smooth scrolling */
+/* html { scroll-behavior: smooth; } */
+
+/* Prevent flash of unstyled content */
+body {
+  opacity: 1;
+}
+
+/* Subtle fade-in for initial page load */
+body {
+  animation: pageLoadFade 0.3s ease-out;
+}
+
+@keyframes pageLoadFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Simple page transitions */
+/* Removed global overflow hidden on html during transitions to prevent scroll bugs */
+
+/* Lock scroll during transitions to prevent unwanted movement */
+/* Avoid global scroll locking during transitions; let Swup handle scroll */
+
+/* Keep footer and nav stable during transitions */
+footer, nav {
+  transform: translateZ(0);
+}
+
+/* Header needs special handling to maintain sticky positioning */
+header {
+  /* Don't apply transform to header as it interferes with sticky positioning */
+}
+
+/* Ensure smooth transitions for interactive elements only */
+a, button, .btn, .card, .callout, nav a {
+  transition: all 0.2s ease-out;
+}
+
+/* Smooth scroll behavior for anchor links only */
+html {
+  scroll-behavior: auto;
+}
+
+
+/* Navigation active states - more subtle */
+nav a.active,
+.nav a.active,
+[role="navigation"] a.active {
+  @apply text-highlight-600 dark:text-highlight-400 font-medium;
+}
+
+/* Remove any background highlighting for nav links */
+nav a,
+.nav a,
+[role="navigation"] a {
+  @apply no-underline;
+}
+
+nav a:hover,
+.nav a:hover,
+[role="navigation"] a:hover {
+  @apply text-highlight-700 dark:text-highlight-300;
+}
+
+/* Prevent layout shift during transitions */
+main {
+  min-height: 50vh;
+}
+
+/* TOC transition states */
+#toc.toc-not-ready {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
+}
+
+#toc:not(.toc-not-ready) {
+  opacity: 1;
+}
+
+/* PostCard component styles - moved from component to global for Swup compatibility */
+.post-card {
+  @apply bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+.featured-post {
+  @apply bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+
+/* Smooth transitions for all interactive elements */
+a, button, .btn, .card, .callout {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Enhanced focus states for better accessibility during transitions */
+a:focus-visible, button:focus-visible, .btn:focus-visible {
+  @apply outline-2 outline-highlight-500 dark:outline-highlight-400 outline-offset-2;
+  transition: outline 0.2s ease-in-out;
+}
+
+/* Image caption styling */
+img + p em {
+  display: block;
+  text-align: center;
+  font-style: italic;
+  font-size: 0.875rem;
+  color: rgb(75 85 99);
+  margin-top: 0.25rem;
+}
+
+.dark img + p em {
+  color: rgb(156 163 175);
+}
+
+/* Image caption container styling for JavaScript-processed images */
+.image-caption-container {
+  text-align: center;
+  margin-top: 0.25rem; /* Reduced from mt-2 (0.5rem) to bring captions closer to images */
+}
+
+.image-caption-container em {
+  font-style: italic;
+  font-size: 0.875rem;
+  color: rgb(75 85 99);
+  display: block;
+}
+
+.dark .image-caption-container em {
+  color: rgb(156 163 175);
+}
+
+/* Mermaid Diagram Styles */
+.mermaid-diagram {
+  @apply my-6 mx-auto max-w-full overflow-hidden;
+}
+
+.mermaid-diagram-content {
+  @apply relative;
+}
+
+.mermaid-diagram-source {
+  @apply hidden;
+}
+
+/* Mermaid diagram styling */
+.mermaid-diagram :global(.mermaid) {
+  @apply text-center;
+}
+
+/* Smooth transitions for theme changes */
+.mermaid-diagram-content {
+  transition: opacity 0.3s ease;
+}
+
+.mermaid-diagram svg {
+  transition: opacity 0.3s ease;
+}
+
+/* Ensure Mermaid SVG is visible */
+.mermaid-diagram svg {
+  @apply block w-full h-auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Error state styling */
+.mermaid-diagram.error {
+  @apply border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20;
+}
+
+.mermaid-diagram.error .mermaid-diagram-content {
+  @apply text-red-600 dark:text-red-400;
+}
+
+/* Loading state styling */
+.mermaid-diagram.loading {
+  @apply border border-primary-200 dark:border-primary-600 rounded-lg p-4 bg-primary-50 dark:bg-primary-800/20;
+}
+
+.mermaid-diagram.loading .mermaid-diagram-content {
+  @apply text-primary-600 dark:text-primary-400;
+}
+
+/* Mermaid theme integration */
+.mermaid-diagram :global(.mermaid) {
+  @apply text-primary-900 dark:text-primary-100;
+}
+
+/* Mermaid diagram responsive design */
+@media (max-width: 768px) {
+  .mermaid-diagram {
+    @apply mx-0;
+  }
+}
+
+/* Mermaid diagram in callouts */
+.callout .mermaid-diagram {
+  @apply my-4;
+}
+
+/* Mermaid diagram in prose */
+.prose .mermaid-diagram {
+  @apply my-6;
+}
+
+/* Enhanced theme-aware Mermaid styling */
+/* Use CSS variables for better theme integration without re-rendering */
+
+/* Light mode: Enhanced contrast for flat elements */
+:root:not(.dark) .mermaid-diagram svg {
+  /* Override text and line variables for better contrast */
+  --mermaid-primary-text-color: #111827 !important;
+  --mermaid-text-color: #111827 !important;
+  --mermaid-line-color: #374151 !important;
+  --mermaid-primary-color: #374151 !important;
+  --mermaid-secondary-color: #6b7280 !important;
+}
+
+/* Dark mode: Enhanced contrast for flat elements */
+.dark .mermaid-diagram svg {
+  --mermaid-primary-text-color: #f9fafb !important;
+  --mermaid-text-color: #f9fafb !important;
+  --mermaid-line-color: #d1d5db !important;
+  --mermaid-primary-color: #d1d5db !important;
+  --mermaid-secondary-color: #9ca3af !important;
+}
+
+/* Target text elements in non-colorful diagrams */
+.mermaid-diagram svg:not(.pie):not(.gitgraph) text {
+  fill: var(--mermaid-text-color) !important;
+  color: var(--mermaid-text-color) !important;
+}
+
+/* Also target sequence diagrams specifically */
+.mermaid-diagram svg.sequenceDiagram text {
+  fill: var(--mermaid-text-color) !important;
+  color: var(--mermaid-text-color) !important;
+}
+
+/* Mermaid theme overrides - only apply dark mode corrective measures */
+
+/* Dark mode corrective measures - ONLY for non-colorful diagrams */
+/* Only target specific text elements that need contrast fixes */
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) .nodeLabel text,
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) .edgeLabel text,
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) .actor text,
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) .messageText {
+  fill: #f9fafb !important;
+}
+
+/* Fix labelText and loopText colors for dark mode */
+.dark .mermaid-diagram svg .labelText,
+.dark .mermaid-diagram svg .loopText,
+.dark .mermaid-diagram svg text.labelText,
+.dark .mermaid-diagram svg text.loopText,
+.dark .mermaid-diagram svg .loopText text,
+.dark .mermaid-diagram svg .labelText text {
+  fill: #f9fafb !important;
+  color: #f9fafb !important;
+}
+
+/* Loop text that needs lighter color in dark mode (no background) */
+.dark .mermaid-diagram svg .loopText tspan {
+  fill: #f9fafb !important;
+}
+
+/* Gantt chart specific styling for better readability */
+.dark .mermaid-diagram svg[aria-roledescription="gantt"] text,
+.dark .mermaid-diagram svg[aria-roledescription="gantt"] .taskText,
+.dark .mermaid-diagram svg[aria-roledescription="gantt"] .sectionText,
+.dark .mermaid-diagram svg[aria-roledescription="gantt"] .dateText {
+  fill: #f9fafb !important;
+  color: #f9fafb !important;
+}
+
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) path:not([fill]),
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) line,
+.dark .mermaid-diagram svg:not(.pie):not(.gitgraph) polyline {
+  stroke: #d1d5db !important;
+}
+
+/* Gantt chart sizing - let Mermaid handle sizing naturally */
+.mermaid-diagram svg[aria-roledescription="gantt"] {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+}
+
+/* Preserve colorful diagrams completely - no overrides in any mode */
+.mermaid-diagram svg.pie,
+.mermaid-diagram svg.gitgraph {
+  /* No overrides - let Mermaid handle colors naturally */
+}
+
+/* Handle specific edge cases as they come up */
+/* TODO: Add specific overrides for problematic elements */
+
+/* Print Styles */
+@media print {
+  .no-print { display: none !important; }
+  body { @apply text-black bg-white; }
+  a { @apply text-black no-underline; }
+  .prose a::after {
+    content: " (" attr(href) ")";
+    @apply text-sm text-gray-600;
+  }
+}
+
+/* End of Mermaid styles */
+
+/* NUCLEAR BOMB HIDING - Hide ALL Mermaid error bombs permanently */
+svg[aria-roledescription="error"],
+svg:has(.error-icon),
+svg:has(.error-text),
+svg[viewBox="0 0 2412 512"],
+svg[viewBox="0 0 417 625"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Hide any SVG containing bomb text */
+svg:has(text:contains("Syntax error in text")),
+svg:has(text:contains("mermaid version")) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ============================================================================
+   OBSIDIAN EMBEDS
+   ============================================================================ */
+
+/* Audio embeds */
+.audio-embed {
+  @apply my-6;
+}
+
+.audio-embed .audio-player {
+  @apply w-full rounded-lg;
+}
+
+/* Video embeds */
+.video-embed {
+  @apply my-8 rounded-xl overflow-hidden;
+}
+
+.video-embed .video-player {
+  @apply w-full rounded-xl;
+}
+
+/* Twitter embeds */
+.twitter-tweet {
+  @apply my-8 mx-auto;
+  @apply max-w-none;
+}
+
+/* YouTube embeds */
+.youtube-embed {
+  @apply aspect-video overflow-hidden rounded-xl my-8;
+  position: relative;
+}
+
+.youtube-embed iframe {
+  @apply w-full h-full;
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+}
+
+/* Twitter/X embeds */
+.twitter-embed {
+  @apply my-8;
+}
+
+.twitter-embed blockquote {
+  @apply border-l-4 border-highlight-500 dark:border-highlight-400 pl-4 py-2;
+  @apply bg-primary-50 dark:bg-primary-800 rounded-r-lg;
+}
+
+/* PDF embeds */
+.pdf-embed {
+  @apply my-8 rounded-lg overflow-hidden;
+  @apply bg-primary-100 dark:bg-primary-800;
+  @apply border border-primary-200 dark:border-primary-600;
+}
+
+.pdf-embed .pdf-viewer {
+  @apply w-full;
+  @apply border-0;
+  height: 80vh;
+  display: block;
+}
+
+.pdf-embed .pdf-info {
+  @apply p-4;
+  @apply bg-primary-50 dark:bg-primary-900;
+  @apply flex items-center justify-between gap-4;
+}
+
+.pdf-embed .pdf-filename {
+  @apply text-sm font-medium;
+  @apply text-primary-700 dark:text-primary-300;
+  @apply truncate flex-1;
+}
+
+.pdf-embed .pdf-download-link {
+  @apply px-4 py-2 rounded-md;
+  @apply bg-highlight-600 dark:bg-highlight-500;
+  @apply text-sm font-medium;
+  @apply hover:bg-highlight-700 dark:hover:bg-highlight-600;
+  @apply transition-colors duration-200;
+  @apply whitespace-nowrap;
+  color: white !important;
+  text-decoration: none !important;
+}
+
+/* SVG embeds */
+.svg-embed {
+  @apply my-6;
+  @apply flex justify-center;
+}
+
+.svg-embed .svg-image {
+  @apply max-w-full h-auto;
+  @apply rounded-lg;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pdf-embed .pdf-viewer {
+    height: 50vh;
+    min-height: 300px;
+    max-height: 500px;
+  }
+
+  .pdf-embed .pdf-info {
+    @apply flex-col items-start gap-2;
+  }
+
+  .pdf-embed .pdf-download-link {
+    @apply w-full text-center;
+  }
+
+  .audio-embed,
+  .video-embed,
+  .youtube-embed {
+    @apply my-6;
+  }
+}

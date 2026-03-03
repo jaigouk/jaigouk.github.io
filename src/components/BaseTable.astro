@@ -1,0 +1,29 @@
+---
+export interface Props {
+  columns: string[];
+  rows: Record<string, any>[];
+}
+const { columns, rows } = Astro.props as Props;
+---
+<div class="overflow-x-auto">
+  <table class="w-full text-left border-collapse">
+    <thead>
+      <tr class="border-b border-primary-200 dark:border-primary-600">
+        {columns.map((col) => (
+          <th class="py-2 pr-4 text-primary-600 dark:text-primary-300 whitespace-nowrap">{col}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row) => (
+        <tr class="border-b border-primary-200/60 dark:border-primary-600/60 last:border-0">
+          {columns.map((col) => (
+            <td class="py-2 pr-4 text-primary-900 dark:text-primary-100 whitespace-nowrap">{String(row[col] ?? '')}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+

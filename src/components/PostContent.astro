@@ -1,0 +1,306 @@
+---
+import type { Post } from '@/types';
+import { processImagesForLightbox, getOptimizedFormat } from '@/utils/images';
+import { siteConfig } from '@/config';
+import { formatDate, formatDateMobile, getReadingTimeMobile } from '@/utils/markdown';
+import ImageGallery from './ImageGallery.astro';
+import TableOfContents from './TableOfContents.astro';
+import Button from './Button.astro';
+import ImageWrapper from './ImageWrapper.astro';
+
+export interface Props {
+  post: Post & {
+    Content: any;
+    toc: any[];
+    readingTime?: any;
+    wordCount?: number;
+  };
+}
+
+const { post } = Astro.props;
+const { Content, toc, readingTime, wordCount } = post;
+
+// Process Obsidian bracket syntax in image field
+const processedImage = (() => {
+  if (!post.data.image) return post.data.image;
+
+  // Handle case where image is an array (unquoted YAML syntax)
+  let imageValue = post.data.image;
+  if (Array.isArray(post.data.image)) {
+    // If it's an array, take the first element
+    imageValue = post.data.image[0];
+  }
+
+  // Ensure imageValue is a string before calling string methods
+  if (typeof imageValue !== 'string') {
+    console.warn('PostContent: imageValue is not a string:', imageValue);
+    return imageValue;
+  }
+
+  // Check if it's Obsidian double bracket syntax
+  if (imageValue.startsWith('[[') && imageValue.endsWith(']]')) {
+    // Extract the content inside the double brackets
+    return imageValue.slice(2, -2);
+  }
+
+  return imageValue;
+})();
+---
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <!-- Main content -->
+    <div class="lg:col-span-8 xl:col-span-9">
+      <!-- Article header -->
+      <header class="mb-8">
+        <h1 class="text-3xl sm:text-4xl font-bold text-primary-900 dark:text-primary-50 mb-6 leading-tight">
+          {post.data.title}
+        </h1>
+
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primary-600 dark:text-primary-300 mb-6">
+          <time datetime={post.data.date.toISOString()} class="font-medium">
+            <span class="hidden sm:inline">
+              {formatDate(post.data.date)}
+            </span>
+            <span class="sm:hidden">
+              {formatDateMobile(post.data.date)}
+            </span>
+          </time>
+
+          {siteConfig.postOptions.readingTime && readingTime && (
+            <>
+              <span class="hidden sm:inline">•</span>
+              <span class="sm:hidden">•</span>
+              <span>
+                <span class="hidden sm:inline">{readingTime.text}</span>
+                <span class="sm:hidden">{getReadingTimeMobile(readingTime)}</span>
+              </span>
+            </>
+          )}
+
+          {siteConfig.postOptions.wordCount && wordCount && (
+            <>
+              <span class="hidden sm:inline">•</span>
+              <span class="sm:hidden">•</span>
+              <span class="min-w-0">
+                <span class="hidden sm:inline">{wordCount.toLocaleString()} words</span>
+                <span class="sm:hidden">{wordCount.toLocaleString()} words</span>
+              </span>
+            </>
+          )}
+        </div>
+
+        {post.data.tags && post.data.tags.length > 0 && siteConfig.postOptions.tags && (
+          <div class="flex flex-wrap gap-2 mb-8">
+            {post.data.tags.map(tag => (
+              <a
+                href={`/posts/tag/${encodeURIComponent(tag)}`}
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-700 transition-colors"
+              >
+                #{tag}
+              </a>
+            ))}
+          </div>
+        )}
+
+        {processedImage && (
+          <div class="aspect-video overflow-hidden rounded-xl mb-8">
+            <ImageWrapper
+              src={(() => {
+                // Clean the image path by removing Obsidian brackets
+                let cleanImagePath = processedImage;
+                if (!cleanImagePath || typeof cleanImagePath !== 'string') return '';
+                if (cleanImagePath.startsWith('[[') && cleanImagePath.endsWith(']]')) {
+                  cleanImagePath = cleanImagePath.slice(2, -2);
+                }
+                
+                // Handle external URLs
+                if (cleanImagePath.startsWith('http')) {
+                  return cleanImagePath;
+                }
+                
+                // Detect folder-based vs file-based: if image path starts with 'attachments/',
+                // it's a single-file post (shared attachments folder)
+                const isFileBased = cleanImagePath.startsWith('attachments/');
+                
+                if (isFileBased) {
+                  // Single-file post - remove attachments/ prefix
+                  cleanImagePath = cleanImagePath.replace('attachments/', '');
+                } else {
+                  // Folder-based post - sync script copies images to post folder root
+                  // Remove 'images/' or 'attachments/' prefixes if present (sync script removes them)
+                  if (cleanImagePath.startsWith('images/') || cleanImagePath.startsWith('attachments/')) {
+                    cleanImagePath = cleanImagePath.replace(/^(images|attachments)\//, '');
+                  }
+                }
+                
+                // Convert to WebP if applicable (sync-images.js creates WebP versions)
+                return getOptimizedFormat(cleanImagePath);
+              })()}
+              basePath={(() => {
+                // 1. External URLs - no basePath needed
+                if (typeof processedImage === 'string' && processedImage.startsWith('http')) {
+                  return '';
+                }
+
+                // 2. Clean the image path to check for attachments/ prefix
+                let cleanImagePath = processedImage;
+                if (typeof cleanImagePath === 'string' && cleanImagePath.startsWith('[[') && cleanImagePath.endsWith(']]')) {
+                  cleanImagePath = cleanImagePath.slice(2, -2);
+                }
+
+                // 3. Detect folder-based vs file-based: if image path starts with 'attachments/',
+                // it's a single-file post (shared attachments folder)
+                if (typeof cleanImagePath === 'string' && cleanImagePath.startsWith('attachments/')) {
+                  // Single-file post with image in attachments folder
+                  return '/posts/attachments/';
+                }
+
+                // 4. Folder-based post - sync script copies images to post folder root
+                // Safety check: ensure post.id exists before using it
+                if (post.id) {
+                  return `/posts/${post.id}/`;
+                }
+
+                // Fallback to attachments directory if post.id is undefined
+                return '/posts/attachments/';
+              })()}
+              alt={post.data.imageAlt || `Image in post: ${post.data.title}`}
+              class="w-full h-full"
+              width={1200}
+              height={675}
+              format={typeof processedImage === 'string' && processedImage.endsWith('.svg') ? undefined : "webp"}
+              quality={90}
+              densities={[1, 2]}
+              loading="eager"
+              fetchpriority="high"
+            />
+          </div>
+        )}
+      </header>
+
+      <!-- Article content -->
+      <div class="prose dark:prose-dark max-w-none table-responsive">
+        <Content />
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="lg:col-span-4 xl:col-span-3">
+      <div class="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto overflow-x-hidden pb-6 space-y-6">
+        <!-- Table of Contents -->
+        {siteConfig.tableOfContents.enabled && toc && toc.length > 0 && (
+          <TableOfContents headings={toc} />
+        )}
+
+        <!-- Post meta info -->
+        <div class="p-6 bg-primary-50 dark:bg-primary-800/50 rounded-xl">
+          <h3 class="font-semibold text-primary-900 dark:text-primary-50 mb-4">
+            Post Information
+          </h3>
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-primary-600 dark:text-primary-300">Published</span>
+              <span class="text-primary-900 dark:text-primary-50">
+                {formatDate(post.data.date)}
+              </span>
+            </div>
+
+            {readingTime && (
+              <div class="flex justify-between">
+                <span class="text-primary-600 dark:text-primary-300">Reading time</span>
+                <span class="text-primary-900 dark:text-primary-50">{readingTime.text}</span>
+              </div>
+            )}
+
+            {wordCount && (
+              <div class="flex justify-between">
+                <span class="text-primary-600 dark:text-primary-300">Word count</span>
+                <span class="text-primary-900 dark:text-primary-50">{wordCount.toLocaleString()}</span>
+              </div>
+            )}
+
+            {post.data.targetKeyword && (
+              <div class="flex justify-between">
+                <span class="text-primary-600 dark:text-primary-300">Target keyword</span>
+                <span class="text-primary-900 dark:text-primary-50 text-right">{post.data.targetKeyword}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Wrap tables in responsive containers for better mobile experience
+  document.addEventListener('DOMContentLoaded', function() {
+    const tables = document.querySelectorAll('.prose table');
+    tables.forEach(table => {
+      if (table.parentElement && !table.parentElement.classList.contains('table-wrapper')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+
+        if (table.parentNode) {
+          table.parentNode.insertBefore(wrapper, table);
+        }
+        wrapper.appendChild(table);
+
+        // Reset table margin since wrapper handles it
+        (table as HTMLElement).style.margin = '0';
+      }
+    });
+  });
+
+  // Initialize anchor link detection
+  document.addEventListener('DOMContentLoaded', () => {
+    // Anchor links are automatically handled by the click event listener below
+  });
+
+  // Handle heading links with smooth scrolling (outside DOMContentLoaded)
+  document.addEventListener('click', (e) => {
+    // Check if clicked element is an anchor link
+    const target = e.target as HTMLElement;
+    if (target && target.tagName === 'A' && target.classList.contains('anchor-link')) {
+      const href = target.getAttribute('href');
+
+      if (href && href.startsWith('#') && href.length > 1) {
+        const targetElement = document.querySelector(href);
+
+        if (targetElement) {
+          e.preventDefault();
+
+          // Update URL
+          history.pushState(null, '', href);
+
+          // Custom smooth scroll implementation
+          const targetPosition = (targetElement as HTMLElement).offsetTop - 100; // Account for header
+          const startPosition = window.pageYOffset;
+          const distance = targetPosition - startPosition;
+          const duration = 800; // 800ms duration
+          let start: number | null = null;
+
+          function step(timestamp: number) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const percentage = Math.min(progress / duration, 1);
+
+            // Easing function (ease-in-out)
+            const easeInOut = percentage < 0.5
+              ? 2 * percentage * percentage
+              : 1 - Math.pow(-2 * percentage + 2, 2) / 2;
+
+            window.scrollTo(0, startPosition + distance * easeInOut);
+
+            if (progress < duration) {
+              requestAnimationFrame(step);
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+      }
+    }
+  });
+</script>

@@ -1,0 +1,111 @@
+---
+import { siteConfig } from '../config';
+---
+
+<!-- Category Filter Component -->
+<!-- This component handles category filtering functionality for projects -->
+
+<script>
+  // Declare global function for Swup compatibility
+  declare global {
+    interface Window {
+      initializeCategoryFiltering: () => void;
+    }
+  }
+  
+  // Global category filtering function - Swup compatible
+  function initializeCategoryFiltering() {
+    // Skip entirely if we're on the projects page (ProjectCategories handles it with multi-select)
+    // Check multiple ways to ensure we catch it
+    const pathname = window.location.pathname;
+    const hasCategoriesContainer = document.querySelector('.categories-container') !== null;
+    const isProjectsPage = pathname.startsWith('/projects') || 
+                          pathname === '/projects' ||
+                          pathname.match(/^\/projects\/?$/) !== null ||
+                          hasCategoriesContainer;
+    
+    if (isProjectsPage) {
+      // Completely skip - ProjectCategories will handle it
+      return;
+    }
+
+    const categoryItems = document.querySelectorAll('.category-item');
+    const projectCards = document.querySelectorAll('[data-project-categories]');
+    let currentActiveCategory: string | null = null;
+
+    // If no category items found, skip
+    if (categoryItems.length === 0) {
+      return;
+    }
+
+    // Remove existing event listeners to prevent duplicates
+    categoryItems.forEach(item => {
+      const newItem = item.cloneNode(true);
+      item.parentNode?.replaceChild(newItem, item);
+    });
+
+    // Re-query after cloning to get fresh elements
+    const freshCategoryItems = document.querySelectorAll('.category-item');
+
+    // Add click functionality for filtering
+    freshCategoryItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const category = item.getAttribute('data-category');
+        
+        if (!category) {
+          return;
+        }
+        
+        // Check if this category is already active
+        const isCurrentlyActive = currentActiveCategory === category;
+        
+        // Reset all buttons to inactive state
+        freshCategoryItems.forEach(btn => {
+          btn.classList.remove('bg-highlight-100', 'dark:bg-highlight-900/40', 'text-highlight-800', 'dark:text-highlight-200', 'ring-1', 'ring-highlight-300', 'dark:ring-highlight-700');
+          btn.classList.add('bg-primary-100', 'dark:bg-primary-800', 'text-primary-700', 'dark:text-primary-300');
+        });
+        
+        if (isCurrentlyActive) {
+          // If clicking the same category, show all projects
+          projectCards.forEach(card => {
+            (card as HTMLElement).style.display = 'block';
+          });
+          currentActiveCategory = null;
+        } else {
+          // Filter projects by category
+          projectCards.forEach(card => {
+            const cardCategories = card.getAttribute('data-project-categories') || '';
+            
+            if (cardCategories.includes(category)) {
+              (card as HTMLElement).style.display = 'block';
+            } else {
+              (card as HTMLElement).style.display = 'none';
+            }
+          });
+          
+          // Make clicked button active
+          item.classList.remove('bg-primary-100', 'dark:bg-primary-800', 'text-primary-700', 'dark:text-primary-300');
+          item.classList.add('bg-highlight-100', 'dark:bg-highlight-900/40', 'text-highlight-800', 'dark:text-highlight-200', 'ring-1', 'ring-highlight-300', 'dark:ring-highlight-700');
+          currentActiveCategory = category;
+        }
+
+        // Dispatch custom event for analytics
+        window.dispatchEvent(new CustomEvent('categoryClicked', {
+          detail: { category, isActive: currentActiveCategory === category }
+        }));
+      });
+    });
+  }
+
+  // Initialize immediately
+  initializeCategoryFiltering();
+  
+  // Initialize on DOM ready
+  document.addEventListener('DOMContentLoaded', initializeCategoryFiltering);
+  
+  // Make function available globally for Swup
+  window['initializeCategoryFiltering'] = initializeCategoryFiltering;
+</script>

@@ -1,0 +1,213 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import { siteConfig } from '@/config';
+import { generatePageSEO } from '@/utils/seo';
+import { shouldShowPost, sortPostsByDate, extractTags } from '@/utils/markdown';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostCard from '@/components/PostCard.astro';
+import Tags from '@/components/Tags.astro';
+import Pagination from '@/components/Pagination.astro';
+import Icon from '@/components/Icon.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // Get all posts
+  const allPosts = await getCollection('posts');
+
+  // Filter posts based on environment
+  const isDev = import.meta.env.DEV;
+  const visiblePosts = allPosts.filter(post => shouldShowPost(post, isDev));
+
+  // Sort posts by date
+  const sortedPosts = sortPostsByDate(visiblePosts);
+
+  // Calculate total pages
+  const postsPerPage = siteConfig.postOptions.postsPerPage;
+  const totalPages = Math.ceil(sortedPosts.length / postsPerPage);
+
+  // Generate paths for each page (starting from page 2)
+  const paths = [];
+  for (let page = 2; page <= totalPages; page++) {
+    paths.push({
+      params: { page: page.toString() },
+      props: {
+        posts: sortedPosts,
+        currentPage: page,
+        totalPages,
+        postsPerPage
+      }
+    });
+  }
+
+  return paths;
+};
+
+export interface Props {
+  posts: any[];
+  currentPage: number;
+  totalPages: number;
+  postsPerPage: number;
+}
+
+const { posts, currentPage, totalPages, postsPerPage } = Astro.props;
+
+// Get query parameters
+const url = new URL(Astro.request.url);
+const selectedTag = url.searchParams.get('tag');
+
+// Filter by tag if specified
+const filteredPosts = selectedTag
+  ? posts.filter(post => post.data.tags?.includes(selectedTag))
+  : posts;
+
+// Calculate pagination for current page
+const startIndex = (currentPage - 1) * postsPerPage;
+const endIndex = Math.min(startIndex + postsPerPage, filteredPosts.length);
+const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+// Extract all unique tags
+const allTags = extractTags(posts);
+
+// Generate SEO data
+const pageTitle = selectedTag
+  ? `Posts tagged "${selectedTag}" - Page ${currentPage}`
+  : `All Posts - Page ${currentPage}`;
+const pageDescription = selectedTag
+  ? `Page ${currentPage} of posts tagged with "${selectedTag}"`
+  : `Page ${currentPage} of all posts on ${siteConfig.title}`;
+
+const seoData = {
+  title: `${pageTitle} | ${siteConfig.title}`,
+  description: pageDescription,
+  canonical: Astro.url.href,
+  ogType: 'website' as const
+};
+
+// Pagination info
+const pagination = {
+  currentPage,
+  totalPages,
+  hasNext: currentPage < totalPages,
+  hasPrev: currentPage > 1,
+  nextUrl: currentPage < totalPages ? `/posts/${currentPage + 1}` : undefined,
+  prevUrl: currentPage > 2 ? `/posts/${currentPage - 1}` : '/posts'
+};
+---
+
+<BaseLayout seoData={seoData}>
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 mb-12" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex items-start justify-between mb-3">
+          <h1 class="text-lg font-bold text-primary-900 dark:text-primary-50">
+            {selectedTag ? (
+              <>Posts tagged "{selectedTag}"</>
+            ) : (
+              <>All Posts</>
+            )}
+          </h1>
+          <div class="flex items-center space-x-2">
+            <a
+              href="/rss.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to RSS feed"
+              data-no-swup
+            >
+              <Icon name="rss" class="w-4 h-4 mr-1.5" />
+              RSS Feed
+            </a>
+            <a
+              href="/feed.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to Atom feed"
+              data-no-swup
+            >
+              <Icon name="atom" class="w-4 h-4 mr-1.5" />
+              Atom Feed
+            </a>
+          </div>
+        </div>
+        <p class="text-base text-primary-600 dark:text-primary-300">
+          Page {currentPage} of {totalPages} • <strong>{filteredPosts.length}</strong>
+          {selectedTag ? (
+            <>posts tagged with
+            <span class="inline-flex items-center px-2 py-1 bg-highlight-100 dark:bg-highlight-900/30 text-highlight-800 dark:text-highlight-200 rounded text-sm font-medium ml-1">
+              #{selectedTag}
+            </span></>
+          ) : (
+            <>total posts</>
+          )}
+        </p>
+
+        <div class="mt-4">
+          <a
+            href="/posts"
+            class="inline-flex items-center text-sm text-primary-600 dark:text-primary-300 hover:text-primary-800 dark:hover:text-primary-200 transition-colors"
+          >
+            <Icon name="arrow-left" class="w-4 h-4 mr-1" />
+            Show all posts
+          </a>
+        </div>
+      </header>
+
+      <div class="relative">
+        <!-- Main content -->
+        <div class="max-w-none">
+          {paginatedPosts.length > 0 ? (
+            <>
+              <!-- Posts list -->
+              <div class="space-y-6 mb-12">
+                {paginatedPosts.map((post, index) => (
+                  <PostCard post={post} eager={index < 2} context="posts" />
+                ))}
+              </div>
+
+              <!-- Pagination -->
+              <Pagination pagination={pagination} baseUrl="/posts" />
+            </>
+          ) : (
+            <!-- No posts found -->
+            <div class="text-center py-16">
+              <Icon name="search-x" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
+              <h2 class="text-2xl font-semibold text-primary-900 dark:text-primary-50 mb-4">
+                No posts found on this page
+              </h2>
+              <p class="text-primary-600 dark:text-primary-300 mb-8">
+                Try going back to an earlier page or removing filters.
+              </p>
+              <div class="space-x-4">
+                <a href="/posts" class="btn-secondary">
+                  View All Posts
+                </a>
+                {currentPage > 1 && (
+                  <a href={pagination.prevUrl} class="btn-outline">
+                    Previous Page
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <!-- Mobile sidebar - appears below content on mobile/tablet -->
+        <div class="xl:hidden mt-12 space-y-6">
+          <!-- Tags -->
+          {siteConfig.postOptions.tags && allTags.length > 0 && (
+            <Tags tags={allTags} currentTag={selectedTag} />
+          )}
+        </div>
+
+        <!-- Desktop sidebar - floats to the right of the content container -->
+        <div class="hidden xl:block absolute top-0 left-full ml-8 w-64">
+          <div class="sticky top-24 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pb-6">
+            <!-- Tags -->
+            {siteConfig.postOptions.tags && allTags.length > 0 && (
+              <Tags tags={allTags} currentTag={selectedTag} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

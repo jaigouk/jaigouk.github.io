@@ -1,0 +1,505 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { Heading } from '@/types';
+import { siteConfig } from '@/config';
+import { generateProjectSEO } from '@/utils/seo';
+import { optimizePostImagePath, optimizeContentImagePath } from '@/utils/images';
+import { processWikilinksInHTML } from '@/utils/internallinks';
+import { getCollection } from 'astro:content';
+import { shouldShowPost, processPost, generateTOC, getAdjacentPosts, formatDate, formatDateMobile, isValidDate } from '@/utils/markdown';
+import { hasProjectCategories } from '@/utils/categories';
+import { normalizeStatus, getStatusDisplayText, hasStatusStyling, getStatusClasses } from '@/utils/status';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import LinkedMentions from '@/components/LinkedMentions.astro';
+import GiscusComments from '@/components/GiscusComments.astro';
+import Lightbox from '@/components/Lightbox.astro';
+import Icon from '@/components/Icon.astro';
+import { Image } from 'astro:assets';
+import { devConfig } from '@/config/dev';
+import { getOptimizedFormat } from '@/utils/images';
+import ImageWrapper from '@/components/ImageWrapper.astro';
+
+export interface Props {
+  project: CollectionEntry<'projects'>;
+}
+
+const { project } = Astro.props;
+
+// Normalize status for consistent handling
+const status = normalizeStatus(project.data.status);
+
+// Smart repository icon detection
+const getRepositoryIcon = (repositoryUrl: string) => {
+  if (!repositoryUrl) return 'folder-git-2';
+
+  const url = repositoryUrl.toLowerCase();
+
+  if (url.includes('github.com') || url.includes('github.io')) {
+    return 'github';
+  } else if (url.includes('gitlab.com')) {
+    return 'gitlab';
+  } else {
+    return 'folder-git-2';
+  }
+};
+
+// Check if we're in development mode
+const isDev = import.meta.env.DEV;
+
+// Generate SEO data
+const seoData = generateProjectSEO(project, import.meta.env.SITE || '');
+
+// Image handling is now done by ImageWrapper component
+
+// Generate structured data for the project
+const structuredData = {
+  "@context": "https://schema.schema.org",
+  "@type": "CreativeWork",
+  "name": project.data.title,
+  "description": project.data.description,
+  "author": {
+    "@type": "Person",
+    "name": siteConfig.author
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": siteConfig.title,
+    "logo": {
+      "@type": "ImageObject",
+      "url": siteConfig.site + "/favicon.ico"
+    }
+  },
+  "dateCreated": project.data.date.toISOString(),
+  "dateModified": project.data.date.toISOString(),
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": Astro.url.href
+  },
+  "url": (project.data.projectUrl || project.data.demoUrl || project.data.demoURL) || Astro.url.href,
+  "codeRepository": project.data.repositoryUrl
+};
+
+// Get all posts for wikilink resolution
+const allPosts = await getCollection('posts');
+const visiblePosts = allPosts.filter(p => shouldShowPost(p as any, isDev));
+
+// Get all projects to check if any have categories
+const allProjectsForCategories = await getCollection('projects');
+const visibleProjectsForCategories = allProjectsForCategories.filter(p => shouldShowPost(p as any, isDev));
+const projectsHaveCategories = hasProjectCategories(allProjectsForCategories);
+
+// Process the project content and get processed data including word count
+const { Content, headings } = await processPost(project as any);
+
+// Generate table of contents if enabled - global setting, then hideTOC frontmatter (default true for projects)
+const hideTOC = project.data.hideTOC === true;
+const shouldShowTOC = siteConfig.tableOfContents.enabled && !hideTOC && headings.length > 0;
+const toc = shouldShowTOC ? await generateTOC(headings) : [];
+
+// Get adjacent projects for navigation
+const { prev: prevProject, next: nextProject } = getAdjacentPosts(visibleProjectsForCategories as any, project.id);
+---
+
+<BaseLayout seoData={seoData}>
+  <Fragment slot="head">
+    <!-- Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+
+    <!-- Preload project cover image - only for projects that will definitely show the image immediately -->
+    {(() => {
+      if (!project.data.image || project.data.hideCoverImage === true) return false;
+
+      // Projects always show images when available, so always preload
+      const shouldPreload = true;
+
+      return shouldPreload;
+    })() && (
+      <link
+        rel="preload"
+        as="image"
+        href={optimizeContentImagePath(project.data.image, 'projects', project.id, project.id)}
+        fetchpriority="high"
+      />
+    )}
+
+    <!-- Project-specific meta tags -->
+    {projectsHaveCategories && project.data.categories && project.data.categories.length > 0 && (
+      <meta name="keywords" content={project.data.categories.join(', ')}>
+    )}
+  </Fragment>
+
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 relative" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Main content -->
+      <article class={`bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm ${project.data.image && project.data.hideCoverImage !== true ? 'overflow-hidden' : ''}`}>
+        {/* Cover image */}
+        {project.data.image && project.data.hideCoverImage !== true && (() => {
+          // Process image path similar to ProjectCard
+          let rawImage = project.data.image;
+          if (Array.isArray(rawImage)) {
+            rawImage = rawImage[0];
+          }
+          
+          // Clean Obsidian brackets
+          let cleanImagePath = typeof rawImage === 'string' ? rawImage : '';
+          if (cleanImagePath.startsWith('[[') && cleanImagePath.endsWith(']]')) {
+            cleanImagePath = cleanImagePath.slice(2, -2);
+          }
+          
+          // Determine src and basePath for ImageWrapper
+          let imageSrc = cleanImagePath;
+          let imageBasePath = '';
+          
+          if (typeof cleanImagePath === 'string' && cleanImagePath.startsWith('http')) {
+            // External URL - pass as-is
+            imageSrc = cleanImagePath;
+            imageBasePath = '';
+          } else {
+            // Detect folder-based vs file-based: if image path starts with 'attachments/',
+            // it's a single-file project (shared attachments folder)
+            const isFileBased = typeof cleanImagePath === 'string' && cleanImagePath.startsWith('attachments/');
+            
+            if (isFileBased) {
+              // Single-file project - remove attachments/ prefix
+              imageSrc = cleanImagePath.replace('attachments/', '');
+              imageBasePath = '/projects/attachments/';
+            } else {
+              // Folder-based project - sync script copies images to project folder root
+              // Remove 'images/' or 'attachments/' prefixes if present (sync script removes them)
+              if (cleanImagePath.startsWith('images/') || cleanImagePath.startsWith('attachments/')) {
+                imageSrc = cleanImagePath.replace(/^(images|attachments)\//, '');
+              } else {
+                imageSrc = cleanImagePath;
+              }
+              // Safety check: ensure project.id exists before using it
+              if (project.id) {
+                imageBasePath = `/projects/${project.id}/`;
+              } else {
+                // Fallback to attachments directory if project.id is undefined
+                imageBasePath = '/projects/attachments/';
+              }
+            }
+          }
+          
+          // Convert to WebP if applicable (sync-images.js creates WebP versions)
+          imageSrc = getOptimizedFormat(imageSrc);
+          
+          return (
+            <div class="h-40 sm:h-48 md:h-56 lg:h-64 overflow-hidden rounded-t-lg bg-primary-100 dark:bg-primary-800">
+              <ImageWrapper
+                src={imageSrc}
+                basePath={imageBasePath}
+                alt={project.data.imageAlt || `Featured image for project: ${project.data.title}`}
+                class="w-full h-full"
+                width={800}
+                height={450}
+                format="webp"
+                quality={85}
+                loading="eager"
+                fetchpriority="high"
+              />
+            </div>
+          );
+        })()}
+
+        <!-- Project content wrapper -->
+        <div class={`p-6 ${project.data.image && project.data.hideCoverImage !== true ? 'rounded-b-lg' : 'rounded-lg'}`}>
+          <!-- Project header -->
+          <header class="mb-4 relative">
+            <h1 class="text-xl font-bold text-primary-900 dark:text-primary-50 mb-6 leading-tight pr-20">
+              {project.data.title}
+            </h1>
+
+            <!-- Floating Action Buttons -->
+            <div class="absolute top-0 right-0 flex gap-2">
+              {project.data.repositoryUrl && (
+                <a
+                  href={project.data.repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center justify-center px-2 py-2 text-sm text-primary-600 dark:text-primary-300 bg-primary-50 dark:bg-primary-800 rounded-lg border border-primary-200 dark:border-primary-700 hover:bg-highlight-100 dark:hover:bg-highlight-800 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200 hover:shadow-md"
+                  title="View Repository"
+                >
+                  <Icon name={getRepositoryIcon(project.data.repositoryUrl)} class="w-4 h-4" />
+                </a>
+              )}
+              {(project.data.projectUrl || project.data.demoUrl || project.data.demoURL) && (
+                <a
+                  href={project.data.projectUrl || project.data.demoUrl || project.data.demoURL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-highlight-600 dark:bg-highlight-400 text-white border-highlight-600 dark:border-highlight-400 rounded-lg hover:opacity-90 transition-all duration-200"
+                  style="color: white !important;"
+                  title="View Project"
+                >
+                  <span class="hidden sm:inline">View</span>
+                  <span class="sm:hidden">View</span>
+                  <Icon name="external-link" class="w-4 h-4" />
+                </a>
+              )}
+            </div>
+
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primary-600 dark:text-primary-300 mb-6">
+              {isValidDate(project.data.date) && (
+                <time datetime={project.data.date.toISOString()} class="font-medium">
+                  <span class="hidden sm:inline">
+                    {formatDate(project.data.date)}
+                  </span>
+                  <span class="sm:hidden">
+                    {formatDateMobile(project.data.date)}
+                  </span>
+                </time>
+              )}
+
+              {isValidDate(project.data.date) && status && hasStatusStyling(status) && (
+                <>
+                  <span class="text-primary-300 dark:text-primary-600 hidden sm:inline">•</span>
+                  <span class="text-primary-300 dark:text-primary-600 sm:hidden">•</span>
+                </>
+              )}
+
+              {status && (
+                <span class={`px-2 py-1 rounded-full text-xs font-medium ${getStatusClasses(status)}`}>
+                  {getStatusDisplayText(status)}
+                </span>
+              )}
+
+            </div>
+
+            <!-- Categories -->
+            {projectsHaveCategories && project.data.categories && project.data.categories.length > 0 && (
+              <div class="flex flex-wrap gap-2 mb-8">
+                {project.data.categories.map((category: string) => (
+                  <span
+                    class="text-xs text-primary-600 dark:text-primary-300 bg-primary-100 dark:bg-primary-800 px-2.5 py-1 rounded-full border border-primary-200 dark:border-primary-700"
+                  >
+                    {category}
+                  </span>
+                ))}
+              </div>
+            )}
+
+          </header>
+
+          <!-- Article content -->
+          <div class="prose dark:prose-dark max-w-none" id="project-content">
+            <Content />
+          </div>
+
+          {siteConfig.postOptions.linkedMentions.enabled && (
+            <LinkedMentions currentSlug={project.id} />
+          )}
+
+          <!-- Project navigation -->
+          {siteConfig.postOptions.postNavigation && (prevProject || nextProject) && (
+            <nav class="mt-8 pt-8 border-t border-primary-200 dark:border-primary-700">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {prevProject && (
+                  <div class="text-left">
+                    <a
+                      href={`/projects/${prevProject.id}`}
+                      class="group block p-4 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-highlight-300 dark:hover:border-highlight-600 transition-all duration-200 hover:shadow-md"
+                    >
+                      <h3 class="font-semibold text-primary-900 dark:text-primary-50 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors">
+                        {prevProject.data.title}
+                      </h3>
+                      <div class="flex justify-start mt-2">
+                        <Icon name="arrow-left" class="w-5 h-5 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500 dark:group-hover:text-highlight-400 transition-colors" />
+                      </div>
+                    </a>
+                  </div>
+                )}
+
+                {nextProject && (
+                  <div class={`text-right ${!prevProject ? 'md:col-start-2' : ''}`}>
+                    <a
+                      href={`/projects/${nextProject.id}`}
+                      class="group block p-4 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-highlight-300 dark:hover:border-highlight-600 transition-all duration-200 hover:shadow-md"
+                    >
+                      <h3 class="font-semibold text-primary-900 dark:text-primary-50 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors">
+                        {nextProject.data.title}
+                      </h3>
+                      <div class="flex justify-end mt-2">
+                        <Icon name="arrow-right" class="w-5 h-5 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500 dark:group-hover:text-highlight-400 transition-colors" />
+                      </div>
+                    </a>
+                  </div>
+                )}
+              </div>
+            </nav>
+          )}
+
+          <!-- Giscus Comments -->
+          {siteConfig.postOptions.comments.enabled && (
+            <div class="mt-16">
+              <GiscusComments
+                postTitle={project.data.title}
+                postSlug={project.id}
+                postUrl={Astro.url.href}
+              />
+            </div>
+          )}
+          </div>
+        </div>
+      </article>
+
+      <!-- Desktop TOC - floats to the right of the content container -->
+      {shouldShowTOC && (
+        <div class="hidden xl:block absolute top-0 left-full ml-1 w-[280px] h-full">
+          <div class="sticky top-24 pb-6" id="toc">
+            <TableOfContents headings={toc} />
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <Fragment slot="scripts">
+    <script define:vars={{ posts: visiblePosts, commentsEnabled: siteConfig.postOptions.comments.enabled, postTitle: project.data.title, postSlug: project.id }}>
+      // Remove duplicate H1 from project content (since we render it in header)
+      document.addEventListener('DOMContentLoaded', function() {
+        const projectContent = document.getElementById('project-content');
+        if (projectContent) {
+          const firstH1 = projectContent.querySelector('h1');
+          if (firstH1) {
+            firstH1.remove();
+          }
+        }
+      });
+
+      // Process wikilinks and initialize layouts after content loads
+      document.addEventListener('DOMContentLoaded', () => {
+        // Initialize image grid layouts (fallback for browsers without :has() support)
+        function initializeImageGrids() {
+          // Check if browser supports :has() selector
+          const supportsHas = CSS.supports('selector(:has(img))');
+
+          if (supportsHas) {
+            // Browser supports :has(), CSS will handle it automatically
+            return;
+          }
+
+          // Fallback for browsers without :has() support
+          const paragraphs = document.querySelectorAll('.prose p');
+
+          paragraphs.forEach(p => {
+            const images = p.querySelectorAll('img, picture');
+            const textNodes = Array.from(p.childNodes).filter(node =>
+              node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== ''
+            );
+            const otherElements = Array.from(p.childNodes).filter(node =>
+              node.nodeType === Node.ELEMENT_NODE && !['IMG', 'PICTURE', 'BR'].includes(node.tagName)
+            );
+
+            // Only process if paragraph contains 2+ images and no other meaningful content
+            if (images.length >= 2 && textNodes.length === 0 && otherElements.length === 0) {
+              // Remove any existing image-grid classes first
+              p.classList.remove('image-grid', 'image-grid-2', 'image-grid-3', 'image-grid-4', 'image-grid-5', 'image-grid-6');
+
+              // Add the appropriate grid class
+              const gridClass = `image-grid-${Math.min(images.length, 6)}`;
+              p.classList.add('image-grid', gridClass);
+            }
+          });
+        }
+
+        // Initialize image grids
+        initializeImageGrids();
+
+        // Process all external links in content to open in new tabs (including reference links)
+        const allLinks = document.querySelectorAll('.prose a[href]');
+        allLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+            // Skip if already has target attribute (e.g., manually set)
+            if (!link.hasAttribute('target')) {
+              link.setAttribute('target', '_blank');
+              link.setAttribute('rel', 'noopener noreferrer');
+            }
+          }
+        });
+
+        // Make initializeImageGrids globally accessible
+        window.initializeImageGrids = initializeImageGrids;
+
+        // Process wikilinks - unified logic for all wikilink types
+        function initializeWikilinks() {
+          const wikilinks = document.querySelectorAll('.wikilink[data-wikilink]');
+
+          wikilinks.forEach(link => {
+            const linkText = link.dataset.wikilink;
+            
+            // Skip same-page anchors (empty data-wikilink) - they're already properly formatted
+            if (!linkText || linkText === '') {
+              return;
+            }
+            
+            const displayOverride = link.dataset.displayOverride;
+            const currentDisplayText = link.textContent;
+
+            // Find the matching post - use id (not slug, which is deprecated in Astro v6)
+            const slug = linkText.toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-+|-+$/g, '');
+
+            // Helper function to create slug from title (same as resolveWikilink logic)
+            const createSlugFromTitle = (title) => {
+              return title.toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            };
+
+            // First try exact id match (Astro v6 uses id, not slug)
+            let post = posts.find(p => p.id === slug);
+            
+            // If not found, try title match (for wikilinks that use post titles)
+            if (!post) {
+              post = posts.find(p => createSlugFromTitle(p.data.title) === slug);
+            }
+
+          if (post) {
+            // Update href
+            link.href = `/posts/${post.id}`;
+
+            // Simple logic:
+            // - If displayOverride exists and is not null, it's a wikilink with custom text [[link|display]] - use it
+            // - If displayOverride is null/undefined, it's a standard markdown link [text](url) - NEVER change the text
+            // - If displayOverride is empty string, it's a naked wikilink [[link]] - use post title
+
+            if (displayOverride && displayOverride !== 'null' && displayOverride !== 'undefined') {
+              // Wikilink with custom display: [[link|display]]
+              link.textContent = displayOverride;
+            } else if (displayOverride === 'null' || displayOverride === null || displayOverride === 'undefined' || displayOverride === undefined) {
+              // Standard markdown link: [text](url) - NEVER change the display text
+              // Keep currentDisplayText as-is
+            } else {
+              // Naked wikilink: [[link]] - use post title
+              link.textContent = post.data.title;
+            }
+          } else {
+            // Mark as broken link
+            link.classList.add('wikilink-broken');
+            link.title = 'Link not found';
+          }
+        });
+      }
+
+      // Make function globally available for Swup re-initialization
+      window.initializeWikilinks = initializeWikilinks;
+
+      // Initialize wikilinks on initial load
+      initializeWikilinks();
+      });
+
+      // Image grids, lightbox, and external links are now handled globally by BaseLayout Swup hooks
+
+    </script>
+  </Fragment>
+
+  <!-- Lightbox is handled globally by BaseLayout -->
+</BaseLayout>

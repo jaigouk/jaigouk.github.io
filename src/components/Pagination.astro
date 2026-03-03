@@ -1,0 +1,151 @@
+---
+import type { PaginationInfo } from '@/types';
+import Icon from './Icon.astro';
+
+export interface Props {
+  pagination: PaginationInfo;
+  baseUrl?: string;
+}
+
+const { pagination, baseUrl = '/posts' } = Astro.props;
+const { currentPage, totalPages, hasNext, hasPrev } = pagination;
+
+// Generate page numbers to show
+function generatePageNumbers(current: number, total: number) {
+  const pages: (number | string)[] = [];
+  const delta = 2; // Number of pages to show on each side of current page
+
+  // Always show first page
+  pages.push(1);
+
+  // Add ellipsis if needed
+  if (current - delta > 2) {
+    pages.push('...');
+  }
+
+  // Add pages around current page
+  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+    pages.push(i);
+  }
+
+  // Add ellipsis if needed
+  if (current + delta < total - 1) {
+    pages.push('...');
+  }
+
+  // Always show last page if there's more than one page
+  if (total > 1) {
+    pages.push(total);
+  }
+
+  return pages;
+}
+
+const pageNumbers = generatePageNumbers(currentPage, totalPages);
+
+const prevUrl = hasPrev 
+    ? (currentPage === 2 ? baseUrl : `${baseUrl}/${currentPage - 1}`)
+    : undefined;
+
+  const nextUrl = hasNext 
+    ? `${baseUrl}/${currentPage + 1}`
+    : undefined;
+---
+
+{totalPages > 1 && (
+  <nav class="flex items-center justify-between py-8" aria-label="Pagination">
+    <!-- Previous page -->
+    <div class="flex-1 flex justify-start">
+      {hasPrev ? (
+        <a
+          href={prevUrl || `${baseUrl}/${currentPage - 1}`}
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-300 bg-white dark:bg-primary-900 border border-primary-300 dark:border-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-800 hover:text-primary-800 dark:hover:text-primary-200 transition-colors"
+        >
+          <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+          Previous
+        </a>
+      ) : (
+        <span class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-400 dark:text-primary-500 bg-primary-100 dark:bg-primary-800 border border-primary-200 dark:border-primary-700 rounded-lg cursor-not-allowed">
+          <Icon name="arrow-left" class="w-4 h-4 mr-2" />
+          Previous
+        </span>
+      )}
+    </div>
+
+    <!-- Page numbers -->
+    <div class="hidden md:flex items-center space-x-2">
+      {pageNumbers.map(page => (
+        typeof page === 'number' ? (
+          <a
+            href={page === 1 ? baseUrl : `${baseUrl}/${page}`}
+            class={`inline-flex items-center justify-center w-10 h-10 text-sm font-medium rounded-lg transition-colors ${
+              page === currentPage
+                ? 'btn-primary'
+                : 'text-primary-600 dark:text-primary-300 bg-white dark:bg-primary-900 border border-primary-300 dark:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-800 hover:text-primary-800 dark:hover:text-primary-200'
+            }`}
+            aria-current={page === currentPage ? 'page' : undefined}
+          >
+            {page}
+          </a>
+        ) : (
+          <span class="inline-flex items-center justify-center w-10 h-10 text-sm text-primary-400 dark:text-primary-500">
+            {page}
+          </span>
+        )
+      ))}
+    </div>
+
+    <!-- Mobile page indicator -->
+    <div class="md:hidden flex items-center space-x-2 text-sm text-primary-600 dark:text-primary-300">
+      <span>
+        Page {currentPage} of {totalPages}
+      </span>
+    </div>
+
+    <!-- Next page -->
+    <div class="flex-1 flex justify-end">
+      {hasNext ? (
+        <a
+          href={nextUrl || `${baseUrl}/${currentPage + 1}`}
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-300 bg-white dark:bg-primary-900 border border-primary-300 dark:border-primary-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-800 hover:text-primary-800 dark:hover:text-primary-200 transition-colors"
+        >
+          Next
+          <Icon name="arrow-right" class="w-4 h-4 ml-2" />
+        </a>
+      ) : (
+        <span class="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-400 dark:text-primary-500 bg-primary-100 dark:bg-primary-800 border border-primary-200 dark:border-primary-700 rounded-lg cursor-not-allowed">
+          Next
+          <Icon name="arrow-right" class="w-4 h-4 ml-2" />
+        </span>
+      )}
+    </div>
+  </nav>
+)}
+
+<style>
+  /* Enhanced pagination styles */
+  nav[aria-label="Pagination"] {
+    @apply select-none;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  nav[aria-label="Pagination"] a,
+  nav[aria-label="Pagination"] span {
+    @apply transition-all duration-200;
+  }
+
+  /* Focus styles */
+  nav[aria-label="Pagination"] a:focus-visible {
+    @apply outline-none ring-2 ring-highlight-500 ring-offset-2;
+  }
+
+  /* Active page enhancement */
+  nav[aria-label="Pagination"] [aria-current="page"] {
+    @apply shadow-lg;
+  }
+
+  /* Hover effects */
+  nav[aria-label="Pagination"] a:hover {
+    @apply transform scale-105;
+  }
+</style>

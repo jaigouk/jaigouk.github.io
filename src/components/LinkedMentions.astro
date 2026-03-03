@@ -1,0 +1,471 @@
+---
+import type { Post, LinkedMention } from '@/types';
+import { findLinkedMentions } from '@/utils/internallinks';
+import { getCollection } from 'astro:content';
+import { getFeature, siteConfig } from '@/config';
+import Icon from './Icon.astro';
+
+export interface Props {
+  currentSlug: string;
+}
+
+const { currentSlug } = Astro.props;
+const isCompact = (siteConfig.postOptions.linkedMentions as any).linkedMentionsCompact;
+
+// Get all posts and pages to find linked mentions
+const posts = await getCollection('posts');
+const pages = await getCollection('pages');
+const linkedMentions = findLinkedMentions(posts as any[], currentSlug, posts as any[], pages as any[]);
+
+
+// Function to process links in excerpt text
+function processExcerptLinks(text: string, targetSlug: string): string {
+  // IMPORTANT: Process markdown links FIRST, before wikilinks
+  // This prevents markdown links from being processed as incomplete links
+  // Then, process wikilinks - they're already in [[link]] or [[link|display]] format from excerpts
+  
+  // First, process standard markdown links - convert to wikilink format
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, displayText, url) => {
+    // Skip if this looks like it's already been processed (has mark tag)
+    if (match.includes('<mark')) {
+      return match;
+    }
+    
+    // Parse anchor if present
+    const anchorIndex = url.indexOf('#');
+    const baseUrl = anchorIndex === -1 ? url : url.substring(0, anchorIndex);
+
+    // Extract the link text from URL to check if it matches target
+    let linkText: string | null = null;
+    if (baseUrl.startsWith('/posts/')) {
+      linkText = baseUrl.replace('/posts/', '').replace(/\.md$/, '');
+      if (linkText && linkText.endsWith('/index')) {
+        linkText = linkText.replace('/index', '');
+      }
+    } else if (baseUrl.startsWith('posts/')) {
+      linkText = baseUrl.replace('posts/', '').replace(/\.md$/, '');
+      if (linkText && linkText.endsWith('/index')) {
+        linkText = linkText.replace('/index', '');
+      }
+    } else if (baseUrl.endsWith('.md')) {
+      linkText = baseUrl.replace(/\.md$/, '');
+      if (linkText && linkText.endsWith('/index')) {
+        linkText = linkText.replace('/index', '');
+      }
+    } else if (!baseUrl.includes('/')) {
+      linkText = baseUrl;
+    }
+
+    let isRelevantLink = false;
+
+    if (linkText) {
+      const linkSlug = linkText.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      isRelevantLink = linkSlug === targetSlug;
+    }
+
+    if (!isRelevantLink) {
+      const targetPost = posts.find(p => p.id === targetSlug);
+      if (targetPost) {
+        const titleSlug = targetPost.data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+        const displaySlug = displayText.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+        isRelevantLink = displaySlug === titleSlug;
+      }
+    }
+
+    const wikilinkFormat = `[[${displayText}]]`;
+
+    if (isRelevantLink) {
+      return `<mark class="bg-highlight-200 dark:bg-highlight-800 text-highlight-900 dark:text-highlight-100 px-1 rounded-sm">${wikilinkFormat}</mark>`;
+    } else {
+      return wikilinkFormat;
+    }
+  });
+
+  // Then, process wikilinks - skip if already processed (has mark tag or triple brackets)
+  // CRITICAL: Use a replacement approach that tracks positions to avoid processing inside mark tags
+  const wikilinkMatches: Array<{index: number, match: string, link: string, display: string | undefined, replacement: string}> = [];
+  const wikilinkRegex = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\](?!\])/g;
+  let wikilinkMatch;
+  
+  while ((wikilinkMatch = wikilinkRegex.exec(text)) !== null) {
+    const match = wikilinkMatch[0];
+    const link = wikilinkMatch[1];
+    const display = wikilinkMatch[2];
+    const matchIndex = wikilinkMatch.index;
+    
+    // Skip if already processed (has mark tag or weird formatting)
+    if (match.includes('<mark') || match.startsWith('[[[')) {
+      continue;
+    }
+    
+    // Check if this is inside a mark tag by looking at the text around it
+    const beforeText = text.substring(Math.max(0, matchIndex - 200), matchIndex);
+    const afterText = text.substring(matchIndex + match.length, matchIndex + match.length + 200);
+    const lastMarkStart = beforeText.lastIndexOf('<mark');
+    const lastMarkEnd = beforeText.lastIndexOf('</mark>');
+    
+    // If there's an unclosed mark tag before us, we're inside it
+    if (lastMarkStart > lastMarkEnd && lastMarkStart !== -1) {
+      // Check if the mark tag extends past our position
+      const markTagEnd = text.indexOf('</mark>', lastMarkStart);
+      if (markTagEnd > matchIndex) {
+        continue; // We're inside a mark tag, skip
+      }
+    }
+    
+    // Process the wikilink
+    const anchorIndex = link.indexOf('#');
+    const baseLink = anchorIndex === -1 ? link : link.substring(0, anchorIndex);
+    let linkSlug = baseLink.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    
+    if (baseLink.startsWith('posts/')) {
+      const postPath = baseLink.replace('posts/', '');
+      const cleanPath = postPath.endsWith('/index') ? postPath.replace('/index', '') : postPath;
+      linkSlug = cleanPath.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    } else if (baseLink.includes('/')) {
+      if (baseLink.endsWith('/index') && baseLink.split('/').length === 2) {
+        const folderName = baseLink.replace('/index', '');
+        linkSlug = folderName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      }
+    }
+    
+    let isRelevantLink = linkSlug === targetSlug;
+    
+    if (!isRelevantLink && display) {
+      const targetPost = posts.find(p => p.id === targetSlug);
+      if (targetPost) {
+        const displaySlug = display.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+        const titleSlug = targetPost.data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+        isRelevantLink = displaySlug === titleSlug || displaySlug === targetSlug;
+      }
+    }
+    
+    if (!isRelevantLink && !baseLink.includes('/') && !baseLink.includes('posts/')) {
+      const targetPost = posts.find(p => p.id === targetSlug);
+      if (targetPost) {
+        const titleSlug = targetPost.data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+        isRelevantLink = linkSlug === titleSlug || linkSlug === targetSlug;
+      }
+    }
+    
+    const displayText = display || (anchorIndex !== -1 ? link.substring(0, anchorIndex) : link);
+    const wikilinkFormat = `[[${displayText}]]`;
+    const replacement = isRelevantLink 
+      ? `<mark class="bg-highlight-200 dark:bg-highlight-800 text-highlight-900 dark:text-highlight-100 px-1 rounded-sm">${wikilinkFormat}</mark>`
+      : wikilinkFormat;
+    
+    wikilinkMatches.push({ index: matchIndex, match, link, display, replacement });
+  }
+  
+  // Replace in reverse order
+  wikilinkMatches.reverse().forEach(({ index, match, replacement }) => {
+    text = text.substring(0, index) + replacement + text.substring(index + match.length);
+  });
+
+  // Finally, handle incomplete markdown links (truncated ones like "[Obsidian Vault..." or "[Astro Suite Obsidian Vault")
+  // CRITICAL: This must be VERY careful to not process links that are already part of wikilinks or markdown links
+  // We'll use a more careful approach: find incomplete links but exclude any that are inside processed content
+  
+  // First, find all positions where we have mark tags (already processed links)
+  const markTagPositions: Array<{start: number, end: number}> = [];
+  const markTagRegex = /<mark[^>]*>.*?<\/mark>/g;
+  let markMatch;
+  while ((markMatch = markTagRegex.exec(text)) !== null) {
+    markTagPositions.push({ start: markMatch.index, end: markMatch.index + markMatch[0].length });
+  }
+  
+  // Also find all complete wikilinks and markdown links (processed or not)
+  const completeLinkPositions: Array<{start: number, end: number}> = [];
+  // Find wikilinks [[...]]
+  const completeWikilinkRegex = /\[\[[^\]]+\]\]/g;
+  let completeWikilinkMatch;
+  while ((completeWikilinkMatch = completeWikilinkRegex.exec(text)) !== null) {
+    completeLinkPositions.push({ start: completeWikilinkMatch.index, end: completeWikilinkMatch.index + completeWikilinkMatch[0].length });
+  }
+  // Find markdown links [...](...)
+  const completeMarkdownLinkRegex = /\[[^\]]+\]\([^)]+\)/g;
+  let completeMarkdownLinkMatch;
+  while ((completeMarkdownLinkMatch = completeMarkdownLinkRegex.exec(text)) !== null) {
+    completeLinkPositions.push({ start: completeMarkdownLinkMatch.index, end: completeMarkdownLinkMatch.index + completeMarkdownLinkMatch[0].length });
+  }
+  
+  // Helper to check if a position is inside any processed/complete link
+  const isInsideProcessedLink = (index: number, length: number): boolean => {
+    const end = index + length;
+    // Check if overlaps with any mark tag
+    for (const pos of markTagPositions) {
+      if (index < pos.end && end > pos.start) return true;
+    }
+    // Check if overlaps with any complete link
+    for (const pos of completeLinkPositions) {
+      if (index < pos.end && end > pos.start) return true;
+    }
+    return false;
+  };
+  
+  // Now find incomplete links, but skip if they're inside processed content
+  const incompleteLinkPattern = /\[([^\]]+?)(?:\]|$)(?!\[)(?!\()/g;
+  let incompleteMatches: Array<{index: number, match: string, displayText: string}> = [];
+  let incompleteMatch;
+  
+  while ((incompleteMatch = incompleteLinkPattern.exec(text)) !== null) {
+    const matchIndex = incompleteMatch.index;
+    const match = incompleteMatch[0];
+    const displayText = incompleteMatch[1];
+    
+    // Skip if this match is inside already-processed content
+    if (isInsideProcessedLink(matchIndex, match.length)) {
+      continue;
+    }
+    
+    // Skip if character before is `[` (part of `[[`)
+    if (matchIndex > 0 && text[matchIndex - 1] === '[') {
+      continue;
+    }
+    
+    // Skip if followed by `(` (part of markdown link)
+    const afterMatch = text.substring(matchIndex + match.length, matchIndex + match.length + 5);
+    if (afterMatch.trim().startsWith('(')) {
+      continue;
+    }
+    
+    // Only process if there's actual text
+    if (!displayText || displayText.trim().length === 0) {
+      continue;
+    }
+    
+    // Check if this incomplete link's display text matches the target post title
+    let isRelevantLink = false;
+    const trimmedDisplay = displayText.trim();
+    const targetPost = posts.find(p => p.id === targetSlug);
+    if (targetPost) {
+      const displayLower = trimmedDisplay.toLowerCase();
+      const titleLower = targetPost.data.title.toLowerCase();
+      const displaySlug = displayLower.replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      const titleSlug = titleLower.replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      const titleWords = titleLower.split(/\s+/).filter(w => w.length >= 3 && !['the', 'and', 'for', 'with'].includes(w));
+      const displayWords = displayLower.split(/\s+/).filter(w => w.length >= 3 && !['the', 'and', 'for', 'with'].includes(w));
+      isRelevantLink = 
+        displaySlug === titleSlug ||
+        titleSlug.includes(displaySlug) ||
+        displaySlug.includes(titleSlug) ||
+        titleWords.some(word => displayLower.includes(word) && word.length >= 5) ||
+        displayWords.some(word => titleLower.includes(word) && word.length >= 5);
+    }
+    
+    const replacement = isRelevantLink 
+      ? `<mark class="bg-highlight-200 dark:bg-highlight-800 text-highlight-900 dark:text-highlight-100 px-1 rounded-sm">[[${trimmedDisplay}]]</mark>`
+      : `[[${trimmedDisplay}]]`;
+    
+    incompleteMatches.push({ index: matchIndex, match, displayText: replacement });
+  }
+  
+  // Process matches in reverse order to preserve indices
+  incompleteMatches.reverse().forEach(({ index, match, displayText }) => {
+    // Double-check we're not overlapping with processed content
+    if (!isInsideProcessedLink(index, match.length)) {
+      text = text.substring(0, index) + displayText + text.substring(index + match.length);
+    }
+  });
+
+  return text;
+}
+---
+
+{linkedMentions.length > 0 && (
+  <section class="mt-12 pt-8 border-t border-primary-200 dark:border-primary-700">
+    <button
+      id="linked-mentions-toggle"
+      class="w-full text-left mb-6 flex items-center justify-between"
+      aria-expanded="true"
+      aria-controls="linked-mentions-content"
+    >
+      <div class="flex items-center">
+        <Icon name="link-2" class="w-5 h-5 mr-2" />
+        <div class="text-base font-semibold text-primary-900 dark:text-primary-50">
+          Linked Mentions
+          <span class="ml-2 text-sm font-normal text-primary-500 dark:text-primary-400">
+            ({linkedMentions.length})
+          </span>
+        </div>
+      </div>
+      <span id="linked-mentions-arrow">
+        <span id="linked-mentions-arrow-icon">
+          <Icon
+            name="chevron-down"
+            class="w-5 h-5 text-primary-500 dark:text-primary-400"
+          />
+        </span>
+      </span>
+    </button>
+
+    <div id="linked-mentions-content" class="overflow-hidden transition-all duration-300 ease-in-out">
+      {isCompact ? (
+        <div class="space-y-2">
+          {linkedMentions.filter(mention => mention !== null).map(mention => (
+            <a
+              href={`/posts/${mention.slug}`}
+              class="group flex items-center justify-between p-3 bg-primary-50 dark:bg-primary-800/30 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-colors block"
+            >
+              <span class="text-primary-900 dark:text-primary-50 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors font-medium">
+                {mention.title}
+              </span>
+              <Icon name="arrow-right" class="w-4 h-4 text-white dark:text-primary-100 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors" />
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="space-y-4">
+          {linkedMentions.filter(mention => mention !== null).map(mention => (
+            <article class="p-4 bg-primary-50 dark:bg-primary-800/30 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-primary-300 dark:hover:border-primary-600 transition-colors">
+              <div class="font-medium text-primary-900 dark:text-primary-50 mb-2">
+                <a
+                  href={`/posts/${mention.slug}`}
+                  class="hover:text-highlight-600 dark:hover:text-highlight-400 transition-colors"
+                >
+                  {mention.title}
+                </a>
+              </div>
+
+              {mention.excerpt && (() => {
+                const processedExcerpt = processExcerptLinks(mention.excerpt, currentSlug);
+                // Check if excerpt appears to be at the end of content
+                // Structural patterns only - no word/phrase matching
+                // Check if excerpt contains or ends with a link (wikilink, markdown link, or processed link in HTML)
+                // Links can be: ]] (wikilink), ) (markdown), </mark> (processed link)
+                const hasLink = /(\[\[[^\]]+\]\]|\[[^\]]+\]\([^\)]+\)|<\/mark>)/i.test(processedExcerpt.trim());
+                const endsWithLink = /(\]\]|\)|<\/mark>)\s*$/i.test(processedExcerpt.trim());
+                // Check if it ends with a complete sentence (period, exclamation, question mark)
+                const endsWithCompleteSentence = /[.!?]\s*$/.test(processedExcerpt.trim());
+                // Check if excerpt ends with structural patterns that suggest incompleteness
+                // (ends with comma, colon, dash, semicolon - suggesting more content)
+                const endsWithIncompletePunctuation = /[,:;-]+\s*$/.test(processedExcerpt.trim());
+                // Check if excerpt ends without proper sentence punctuation (ends with letter/word, not .!?)
+                // Only check this if it doesn't end with a link (links are valid endings)
+                const endsWithoutSentenceEnding = !endsWithLink && !/[.!?]\s*$/.test(processedExcerpt.trim()) && /[a-zA-Z]\s*$/.test(processedExcerpt.trim());
+                
+                // Determine if excerpt is at natural end: 
+                // - Ends with a link (valid ending - links are complete thoughts), OR
+                // - Has complete sentence AND not incomplete punctuation AND not ending with just a letter
+                const isAtEnd = endsWithLink || (endsWithCompleteSentence && !endsWithIncompletePunctuation && !endsWithoutSentenceEnding);
+                
+                // Check if excerpt appears to be at the start
+                // If it starts with a complete sentence (capital letter), likely at start
+                const isAtStart = /^[A-Z]/.test(processedExcerpt.trim());
+                
+                // Only add ellipses if content was clearly truncated from middle
+                const needsStartEllipsis = !isAtStart && processedExcerpt.length > 60;
+                // Need end ellipses ONLY if:
+                // - Not at natural end (doesn't end with link or complete sentence), AND
+                // - Doesn't end with incomplete punctuation (which already suggests truncation), AND
+                // - Doesn't end without sentence ending (which already suggests truncation)
+                // Simplified: if it ends with a link, never add ellipses; otherwise use existing logic
+                const needsEndEllipsis = !endsWithLink && (!isAtEnd || endsWithIncompletePunctuation || endsWithoutSentenceEnding);
+                
+                const finalExcerpt = `${needsStartEllipsis ? '...' : ''}${processedExcerpt}${needsEndEllipsis ? '...' : ''}`;
+                
+                return (
+                  <p
+                    class="text-sm text-primary-600 dark:text-primary-300 leading-relaxed"
+                    set:html={finalExcerpt}
+                  />
+                );
+              })()}
+
+              <div class="mt-3 flex items-center text-xs text-primary-500 dark:text-primary-400">
+                <Icon name="arrow-right" class="w-3 h-3 mr-1" />
+                <span>Referenced in this post</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  </section>
+)}
+
+<script>
+  // Linked Mentions Toggle Functionality - Swup Compatible
+  function initializeLinkedMentions() {
+    const toggle = document.getElementById('linked-mentions-toggle') as HTMLButtonElement;
+    const content = document.getElementById('linked-mentions-content') as HTMLElement;
+    const arrowIcon = document.getElementById('linked-mentions-arrow-icon') as HTMLElement;
+
+    if (toggle && content && arrowIcon) {
+      // Remove any existing event listeners to prevent duplicates
+      const newToggle = toggle.cloneNode(true) as HTMLButtonElement;
+      const parentNode = toggle.parentNode;
+      if (parentNode) {
+        parentNode.replaceChild(newToggle, toggle);
+      }
+
+      // Get fresh references after cloning
+      const freshContent = document.getElementById('linked-mentions-content') as HTMLElement;
+      const freshArrowIcon = document.getElementById('linked-mentions-arrow-icon') as HTMLElement;
+
+      // Add click handler to the new toggle element
+      newToggle.addEventListener('click', function() {
+        const isExpanded = newToggle.getAttribute('aria-expanded') === 'true';
+
+        if (isExpanded) {
+          // Collapse
+          freshContent.style.maxHeight = '0';
+          freshContent.style.opacity = '0';
+          freshArrowIcon.style.setProperty('--arrow-rotation', '90deg');
+          newToggle.setAttribute('aria-expanded', 'false');
+        } else {
+          // Expand
+          freshContent.style.maxHeight = freshContent.scrollHeight + 'px';
+          freshContent.style.opacity = '1';
+          freshArrowIcon.style.setProperty('--arrow-rotation', '0deg');
+          newToggle.setAttribute('aria-expanded', 'true');
+        }
+      });
+
+      // Initialize with expanded state
+      freshContent.style.maxHeight = freshContent.scrollHeight + 'px';
+      freshContent.style.opacity = '1';
+      freshArrowIcon.style.setProperty('--arrow-rotation', '0deg');
+    }
+  }
+
+  // Initialize on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeLinkedMentions);
+  } else {
+    initializeLinkedMentions();
+  }
+
+  // Make function globally accessible for Swup hooks
+  (window as any).initializeLinkedMentions = initializeLinkedMentions;
+</script>
+
+<style>
+  /* Enhanced styling for linked mentions */
+  .linked-mention-item {
+    position: relative;
+  }
+
+  .linked-mention-item::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, rgb(14 165 233), rgb(59 130 246));
+    border-radius: 2px;
+    opacity: 0.3;
+  }
+
+  .linked-mention-item:hover::before {
+    opacity: 1;
+  }
+
+  /* Ensure smooth arrow transition */
+  #linked-mentions-arrow-icon {
+    display: inline-block;
+    transition: transform 200ms ease-in-out !important;
+    transform: rotate(var(--arrow-rotation, 0deg));
+  }
+</style>

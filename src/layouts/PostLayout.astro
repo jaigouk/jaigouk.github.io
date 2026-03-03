@@ -1,0 +1,437 @@
+---
+import type { Post, Heading } from '@/types';
+import { siteConfig } from '@/config';
+import { generatePostSEO } from '@/utils/seo';
+import { optimizePostImagePath, getOptimizedFormat } from '@/utils/images';
+import { processWikilinksInHTML } from '@/utils/internallinks';
+import { getCollection } from 'astro:content';
+import { shouldShowPost, processPost, calculateReadingTime, generateTOC, getAdjacentPosts, formatDate, formatDateMobile, getReadingTimeMobile } from '@/utils/markdown';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import LinkedMentions from '@/components/LinkedMentions.astro';
+import LocalGraph from '@/components/LocalGraph.astro';
+import GiscusComments from '@/components/GiscusComments.astro';
+import Lightbox from '@/components/Lightbox.astro';
+import Icon from '@/components/Icon.astro';
+import ImageWrapper from '@/components/ImageWrapper.astro';
+import { devConfig } from '@/config/dev';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+export interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+
+// Check if we're in development mode
+const isDev = import.meta.env.DEV;
+
+// Generate SEO data
+const seoData = generatePostSEO(post, import.meta.env.SITE || '');
+
+
+
+// Generate structured data for the post
+const structuredData = {
+  "@context": "https://schema.schema.org",
+  "@type": "BlogPosting",
+  "headline": post.data.title,
+  "description": post.data.description,
+  "author": {
+    "@type": "Person",
+    "name": siteConfig.author
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": siteConfig.title,
+    "logo": {
+      "@type": "ImageObject",
+      "url": siteConfig.site + "/favicon.ico"
+    }
+  },
+  "datePublished": post.data.date.toISOString(),
+  "dateModified": post.data.date.toISOString(),
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": Astro.url.href
+  }
+};
+
+// Get all posts for wikilink resolution
+const allPosts = await getCollection('posts');
+const visiblePosts = allPosts.filter(p => shouldShowPost(p, isDev));
+
+// Process the post content and get processed data including word count
+const { Content, headings, wordCount, remarkPluginFrontmatter } = await processPost(post);
+const readingTime = calculateReadingTime(post.body || '');
+
+// Generate table of contents if enabled
+const hideTOC = post.data.hideTOC === true;
+const shouldShowTOC = !hideTOC && siteConfig.tableOfContents.enabled && headings.length > 0;
+const toc = shouldShowTOC ? await generateTOC(headings) : [];
+
+// Get adjacent posts for navigation
+const { prev: prevPost, next: nextPost } = getAdjacentPosts(visiblePosts, post.id);
+
+// Check if current post has connections for LocalGraph
+let hasLocalGraphConnections = false;
+if (siteConfig.postOptions.graphView.enabled && siteConfig.postOptions.graphView.showInSidebar) {
+  try {
+    // Read the graph data file directly from the file system (works at build time)
+    const graphDataPath = join(process.cwd(), 'public', 'graph', 'graph-data.json');
+    const graphDataContent = readFileSync(graphDataPath, 'utf-8');
+    const graphData = JSON.parse(graphDataContent);
+
+    // Check if current post has any connections (both incoming and outgoing)
+    const matchingConnections = graphData.connections.filter((conn: any) =>
+      conn.source === post.id || conn.target === post.id
+    );
+    
+    hasLocalGraphConnections = matchingConnections.length > 0;
+  } catch (error) {
+    // If we can't read the graph data at build time, don't show the graph
+    hasLocalGraphConnections = false;
+  }
+}
+---
+
+<BaseLayout seoData={seoData}>
+  <Fragment slot="head">
+    <!-- Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+
+    <!-- Preload post cover image - only for posts that will definitely show the image immediately -->
+    {(() => {
+      if (!post.data.image || post.data.hideCoverImage === true) return false;
+
+      const showCoverImages = siteConfig.postOptions.showPostCardCoverImages;
+      // Only preload for posts that are likely to show the image immediately
+      // Skip preload for complex posts that might have delayed rendering
+      const shouldPreload = ['all', 'posts', 'featured-and-posts'].includes(showCoverImages) &&
+                           post.id !== 'formatting-reference';
+
+      return shouldPreload;
+    })() && (
+      <link
+        rel="preload"
+        as="image"
+        href={post.data.image?.startsWith('http') ? post.data.image : (post.data.image ? optimizePostImagePath(post.data.image, post.id, post.id) : '')}
+        fetchpriority="high"
+      />
+    )}
+
+    <!-- Post-specific meta tags -->
+    {post.data.targetKeyword && (
+      <meta name="keywords" content={post.data.targetKeyword}>
+    )}
+  </Fragment>
+
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 relative" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Main content -->
+      <article class={`bg-primary-50 dark:bg-primary-900 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm ${siteConfig.postOptions.showPostCardCoverImages !== 'none' && post.data.image && post.data.hideCoverImage !== true ? 'overflow-hidden' : ''}`}>
+        {/* Cover image - shown if global config allows and not hidden by frontmatter */}
+        {siteConfig.postOptions.showPostCardCoverImages !== 'none' && post.data.image && post.data.hideCoverImage !== true && (() => {
+          // Process image path similar to PostCard
+          let rawImage = post.data.image;
+          if (Array.isArray(rawImage)) {
+            rawImage = rawImage[0];
+          }
+          
+          // Clean Obsidian brackets
+          let cleanImagePath = typeof rawImage === 'string' ? rawImage : '';
+          if (cleanImagePath.startsWith('[[') && cleanImagePath.endsWith(']]')) {
+            cleanImagePath = cleanImagePath.slice(2, -2);
+          }
+          
+          // Determine src and basePath for ImageWrapper
+          let imageSrc = cleanImagePath;
+          let imageBasePath = '';
+          
+          if (typeof cleanImagePath === 'string' && cleanImagePath.startsWith('http')) {
+            // External URL - pass as-is
+            imageSrc = cleanImagePath;
+            imageBasePath = '';
+          } else {
+            // Detect folder-based vs file-based: if image path starts with 'attachments/',
+            // it's a single-file post (shared attachments folder)
+            const isFileBased = typeof cleanImagePath === 'string' && cleanImagePath.startsWith('attachments/');
+            
+            if (isFileBased) {
+              // Single-file post - remove attachments/ prefix
+              imageSrc = cleanImagePath.replace('attachments/', '');
+              imageBasePath = '/posts/attachments/';
+            } else {
+              // Folder-based post - sync script copies images to post folder root
+              // Remove 'images/' or 'attachments/' prefixes if present (sync script removes them)
+              if (cleanImagePath.startsWith('images/') || cleanImagePath.startsWith('attachments/')) {
+                imageSrc = cleanImagePath.replace(/^(images|attachments)\//, '');
+              } else {
+                imageSrc = cleanImagePath;
+              }
+              // Safety check: ensure post.id exists before using it
+              if (post.id) {
+                imageBasePath = `/posts/${post.id}/`;
+              } else {
+                // Fallback to attachments directory if post.id is undefined
+                imageBasePath = '/posts/attachments/';
+              }
+            }
+          }
+          
+          // Convert to WebP if applicable (sync-images.js creates WebP versions)
+          imageSrc = getOptimizedFormat(imageSrc);
+          
+          return (
+            <div class="h-40 sm:h-48 md:h-56 lg:h-64 overflow-hidden rounded-t-lg bg-primary-100 dark:bg-primary-800">
+              <ImageWrapper
+                src={imageSrc}
+                basePath={imageBasePath}
+                alt={post.data.imageAlt || `Featured image for post: ${post.data.title}`}
+                class="w-full h-full"
+                width={800}
+                height={450}
+                format="webp"
+                quality={85}
+                loading="eager"
+                fetchpriority="high"
+              />
+            </div>
+          );
+        })()}
+
+        <!-- Post content wrapper -->
+        <div class={`p-6 ${siteConfig.postOptions.showPostCardCoverImages !== 'none' && post.data.image && post.data.hideCoverImage !== true ? 'rounded-b-lg' : 'rounded-lg'}`}>
+          <!-- Post header -->
+          <header class="mb-4">
+          <h1 class="text-xl font-bold text-primary-900 dark:text-primary-50 mb-6 leading-tight">
+            {post.data.title}
+          </h1>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-primary-600 dark:text-primary-300 mb-6">
+            <time datetime={post.data.date.toISOString()} class="font-medium">
+              <span class="hidden sm:inline">
+                {formatDate(post.data.date)}
+              </span>
+              <span class="sm:hidden">
+                {formatDateMobile(post.data.date)}
+              </span>
+            </time>
+
+            {siteConfig.postOptions.readingTime && readingTime && (
+              <>
+                <span class="text-primary-300 dark:text-primary-600 hidden sm:inline">•</span>
+                <span class="text-primary-300 dark:text-primary-600 sm:hidden">•</span>
+                <span>
+                  <span class="hidden sm:inline">{readingTime.text && readingTime.text !== 'read0' && readingTime.text !== '' ? readingTime.text : '1 min read'}</span>
+                  <span class="sm:hidden">{getReadingTimeMobile(readingTime)}</span>
+                </span>
+              </>
+            )}
+
+            {siteConfig.postOptions.wordCount && wordCount !== undefined && (
+              <>
+                <span class="text-primary-300 dark:text-primary-600 hidden sm:inline">•</span>
+                <span class="text-primary-300 dark:text-primary-600 sm:hidden">•</span>
+                <span class="min-w-0">
+                  <span class="hidden sm:inline">{wordCount === 1 ? '1 word' : `${wordCount} words`}</span>
+                  <span class="sm:hidden">{wordCount === 1 ? '1 word' : `${wordCount.toLocaleString()} words`}</span>
+                </span>
+              </>
+            )}
+          </div>
+
+          {siteConfig.postOptions.tags && post.data.tags && post.data.tags.length > 0 && (
+            <div class="flex flex-wrap gap-2 mb-8">
+              {post.data.tags.map(tag => (
+                <a
+                  href={`/posts/tag/${encodeURIComponent(tag)}`}
+                  class="text-xs text-primary-600 dark:text-primary-300 bg-primary-100 dark:bg-primary-800 px-2.5 py-1 rounded-full border border-primary-200 dark:border-primary-700 transition-colors hover:bg-highlight-100 dark:hover:bg-highlight-800"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+          )}
+        </header>
+
+        <!-- Article content -->
+        <div class="prose dark:prose-dark max-w-none" id="post-content">
+          <Content />
+        </div>
+
+        {siteConfig.postOptions.linkedMentions.enabled && (
+          <LinkedMentions currentSlug={post.id} />
+        )}
+
+        <!-- Post navigation -->
+        {siteConfig.postOptions.postNavigation && (prevPost || nextPost) && (
+          <nav class={`mt-8 pt-8 ${siteConfig.postOptions.linkedMentions.enabled ? '' : 'border-t border-primary-200 dark:border-primary-700'}`}>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {prevPost && (
+                <div class="text-left">
+                  <a
+                    href={`/posts/${prevPost.id}`}
+                    class="group block p-4 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-highlight-300 dark:hover:border-highlight-600 transition-all duration-200 hover:shadow-md"
+                  >
+                    <h3 class="font-semibold text-primary-900 dark:text-primary-50 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors">
+                      {prevPost.data.title}
+                    </h3>
+                    <div class="flex justify-start mt-2">
+                      <Icon name="arrow-left" class="w-5 h-5 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500 dark:group-hover:text-highlight-400 transition-colors" />
+                    </div>
+                  </a>
+                </div>
+              )}
+
+              {nextPost && (
+                <div class={`text-right ${!prevPost ? 'md:col-start-2' : ''}`}>
+                  <a
+                    href={`/posts/${nextPost.id}`}
+                    class="group block p-4 rounded-lg border border-primary-200 dark:border-primary-700 hover:border-highlight-300 dark:hover:border-highlight-600 transition-all duration-200 hover:shadow-md"
+                  >
+                    <h3 class="font-semibold text-primary-900 dark:text-primary-50 group-hover:text-highlight-600 dark:group-hover:text-highlight-400 transition-colors">
+                      {nextPost.data.title}
+                    </h3>
+                    <div class="flex justify-end mt-2">
+                      <Icon name="arrow-right" class="w-5 h-5 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500 dark:group-hover:text-highlight-400 transition-colors" />
+                    </div>
+                  </a>
+                </div>
+              )}
+            </div>
+          </nav>
+        )}
+
+        <!-- Giscus Comments -->
+        {siteConfig.postOptions.comments.enabled && (
+          <div class="mt-16">
+            <GiscusComments
+              postTitle={post.data.title}
+              postSlug={post.id}
+              postUrl={Astro.url.href}
+            />
+          </div>
+        )}
+        </div>
+      </article>
+
+      <!-- Desktop Left Sidebar - Graph (top left) -->
+      {hasLocalGraphConnections && (
+        <div class="hidden xl:block absolute top-0 right-full mr-1 w-[280px] h-full">
+          <div class="sticky top-24 pb-6" id="graph-sidebar">
+            <LocalGraph currentSlug={post.id} />
+          </div>
+        </div>
+      )}
+
+      <!-- Desktop Right Sidebar - TOC -->
+      {shouldShowTOC && (
+        <div class="hidden xl:block absolute top-0 left-full ml-1 w-[280px] h-full">
+          <div class="sticky top-24 pb-6" id="toc-sidebar">
+            <TableOfContents headings={toc} />
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <Fragment slot="scripts">
+    <script define:vars={{ posts: visiblePosts, commentsEnabled: siteConfig.postOptions.comments.enabled, postTitle: post.data.title, postSlug: post.id }}>
+
+      // Process wikilinks - unified logic for all wikilink types
+      function initializeWikilinks() {
+        const wikilinks = document.querySelectorAll('.wikilink[data-wikilink]');
+
+        wikilinks.forEach(link => {
+          const linkText = link.dataset.wikilink;
+          
+          // Skip same-page anchors (empty data-wikilink) - they're already properly formatted
+          if (!linkText || linkText === '') {
+            return;
+          }
+          
+          const displayOverride = link.dataset.displayOverride;
+          const currentDisplayText = link.textContent;
+
+          // Find the matching post - use id (not slug, which is deprecated in Astro v6)
+          const slug = linkText.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+          // Helper function to create slug from title (same as resolveWikilink logic)
+          const createSlugFromTitle = (title) => {
+            return title.toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-+|-+$/g, '');
+          };
+
+          // First try exact id match (Astro v6 uses id, not slug)
+          let post = posts.find(p => p.id === slug);
+          
+          // If not found, try title match (for wikilinks that use post titles)
+          if (!post) {
+            post = posts.find(p => createSlugFromTitle(p.data.title) === slug);
+          }
+
+          if (post) {
+            // Update href - preserve anchor if present
+            const currentHref = link.href || link.getAttribute('href') || '';
+            const anchorMatch = currentHref.match(/#(.+)$/);
+            const anchor = anchorMatch ? anchorMatch[1] : null;
+            
+            if (anchor) {
+              link.href = `/posts/${post.id}#${anchor}`;
+            } else {
+              link.href = `/posts/${post.id}`;
+            }
+
+            // Simple logic:
+            // - If displayOverride exists and is not null, it's a wikilink with custom text [[link|display]] - use it
+            // - If displayOverride is null/undefined, it's a standard markdown link [text](url) - NEVER change the text
+            // - If displayOverride is empty string, it's a naked wikilink [[link]] - use post title
+
+            if (displayOverride && displayOverride !== 'null' && displayOverride !== 'undefined') {
+              // Wikilink with custom display: [[link|display]]
+              link.textContent = displayOverride;
+            } else if (displayOverride === 'null' || displayOverride === null || displayOverride === 'undefined' || displayOverride === undefined) {
+              // Standard markdown link: [text](url) - NEVER change the display text
+              // Keep currentDisplayText as-is
+            } else {
+              // Naked wikilink: [[link]] - use post title
+              link.textContent = post.data.title;
+            }
+          } else {
+            // Mark as broken link
+            link.classList.add('wikilink-broken');
+            link.title = 'Link not found';
+          }
+        });
+      }
+
+      // Make function globally available for Swup re-initialization
+      window.initializeWikilinks = initializeWikilinks;
+
+      // Process wikilinks and initialize layouts after content loads
+      document.addEventListener('DOMContentLoaded', () => {
+        // Process external links - handled by BaseLayout, but call here as backup for initial load
+        if (window.processExternalLinks) {
+          window.processExternalLinks();
+        }
+
+        // Initialize wikilinks on initial load
+        initializeWikilinks();
+      });
+
+      // External links are now handled globally by BaseLayout Swup hooks
+
+    </script>
+  </Fragment>
+
+  <!-- Lightbox is handled globally by BaseLayout -->
+</BaseLayout>

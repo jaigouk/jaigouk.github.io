@@ -1,0 +1,13 @@
+# Cloudflare Workers Configuration
+# This file is automatically updated by the build process
+# See: https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/
+
+# You can rename this to your desired project name (e.g., "my-blog", "my-website")
+# This name will be used for your Cloudflare Worker deployment
+name = "astro-modular"
+compatibility_date = "2025-01-15"
+
+[assets]
+  directory = "./dist"
+  not_found_handling = "404-page"  # Serve custom 404 page from src/pages/404.astro
+

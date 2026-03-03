@@ -1,0 +1,222 @@
+filters:
+  and:
+    - file.ext == "md"
+formulas:
+  Slug: |
+    (
+      if(file.folder == "posts", "/posts/" + file.name.replace(".md", ""), 
+        if(file.folder == "projects", "/projects/" + file.name.replace(".md", ""), 
+          if(file.folder == "docs", "/docs/" + file.name.replace(".md", ""), 
+            ("/" + file.folder + "/" + file.name.replace(".md", "")).replace("/pages/index", "/").replace("/pages/", "/").replace("/special/index", "/").replace("/special/", "/").replace("/home", "/").replace("/index", "")
+          )
+        )
+      ) + "/"
+    ).replace("//", "/")
+  Content Folder: |-
+    if(file.name == "index",
+      if(file.folder != "",
+        if(file.folder.replace("/" + file.folder.replace(/.*\//, ""), "") != "",
+          file.folder.replace("/" + file.folder.replace(/.*\//, ""), ""),
+          file.folder
+        ),
+        "root"
+      ),
+      if(file.folder != "",
+        file.folder,
+        "root"
+      )
+    )
+properties:
+  note.title:
+    displayName: Title
+  note.date:
+    displayName: Date
+  note.pubDate:
+    displayName: Date
+  formula.Slug:
+    displayName: Path
+  note.draft:
+    displayName: Draft
+views:
+  - type: cms
+    name: Posts
+    filters:
+      and:
+        - file.folder.startsWith("posts")
+    sort:
+      - property: date
+        direction: DESC
+    imageProperty: note.image
+    fallbackToEmbeds: if-empty
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    imageFormat: cover
+    showDate: true
+    showDraftStatus: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.date
+    draftStatusProperty: note.draft
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: true
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: posts
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+    dateIncludeTime: false
+    fallbackToContent: true
+    draftStatusReverse: false
+  - type: cms
+    name: Pages
+    filters:
+      and:
+        - file.folder.startsWith("pages")
+    sort:
+      - property: title
+        direction: ASC
+    imageProperty: note.image
+    fallbackToEmbeds: true
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    imageFormat: cover
+    showDate: true
+    showDraftStatus: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.date
+    draftStatusProperty: note.draft
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: true
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: pages
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+  - type: cms
+    name: Projects
+    filters:
+      and:
+        - file.folder.startsWith("projects")
+    sort:
+      - property: title
+        direction: ASC
+    imageProperty: note.image
+    fallbackToEmbeds: true
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    imageFormat: cover
+    showDate: true
+    showDraftStatus: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.date
+    draftStatusProperty: note.draft
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: true
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: projects
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+  - type: cms
+    name: Documentation
+    filters:
+      and:
+        - file.folder.startsWith("docs")
+    groupBy:
+      property: category
+      direction: ASC
+    sort:
+      - property: order
+        direction: ASC
+    imageProperty: note.image
+    fallbackToEmbeds: true
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    imageFormat: cover
+    showDate: true
+    showDraftStatus: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.lastModified
+    draftStatusProperty: note.draft
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: false
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: docs
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+    propertyDisplay2: note.version
+  - type: cms
+    name: Special Pages
+    filters:
+      and:
+        - file.folder.startsWith("special")
+    sort:
+      - property: title
+        direction: ASC
+    imageProperty: note.image
+    fallbackToEmbeds: true
+    propertyDisplay1: formula.Slug
+    showTextPreview: false
+    imageFormat: none
+    showDate: false
+    showDraftStatus: false
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.date
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: false
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: pages
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+    hideQuickEditIcon: true
+  - type: cms
+    name: All Content
+    groupBy:
+      property: formula.Content Folder
+      direction: ASC
+    sort:
+      - property: title
+        direction: ASC
+    imageProperty: note.image
+    fallbackToEmbeds: true
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    imageFormat: thumbnail
+    showDate: true
+    showDraftStatus: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.lastModified
+    draftStatusProperty: note.draft
+    descriptionProperty: note.description
+    propertyLayout12SideBySide: false
+    propertyLayout34SideBySide: false
+    showTags: false
+    tagsProperty: note.tags
+    customizeNewButton: true
+    newNoteLocation: ""
+    cardSize: 250
+    imageAspectRatio: 0.55
+    maxTagsToShow: 2
+    hideQuickEditIcon: true

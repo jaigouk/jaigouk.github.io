@@ -1,0 +1,99 @@
+---
+import { getCollection, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/Icon.astro';
+
+// Try to get 404 page content from special collection
+let pageContent = null;
+try {
+  const specialPages = await getCollection('special');
+  const notFoundPage = specialPages.find(page => page.id === '404');
+  if (notFoundPage) {
+    pageContent = await render(notFoundPage);
+  }
+} catch (error) {
+}
+
+// SEO data for 404 page
+const seoData = {
+  title: `Page Not Found | ${siteConfig.title}`,
+  description: 'The page you are looking for could not be found.',
+  canonical: Astro.url.href,
+  ogType: 'website' as const
+};
+
+// Set proper status code
+Astro.response.status = 404;
+---
+
+<BaseLayout seoData={seoData}>
+  <div class="min-h-[60vh] flex items-center justify-center py-12">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 text-center" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Error icon -->
+      <div class="mb-8">
+        <Icon name="file-x" class="w-12 h-12 text-primary-400 dark:text-primary-500 mx-auto" />
+      </div>
+      
+      <!-- Error message -->
+      <h1 class="text-2xl font-bold text-primary-900 dark:text-primary-50 mb-4">
+        404
+      </h1>
+      
+      <h2 class="font-semibold text-primary-700 dark:text-primary-300 mb-6">
+        Page Not Found
+      </h2>
+      
+      {pageContent ? (
+        <!-- Custom 404 content -->
+        <div class="prose prose-sm dark:prose-dark mx-auto mb-8">
+          <pageContent.Content />
+        </div>
+      ) : (
+        <!-- Default 404 content -->
+        <div class="mb-8">
+          <p class="text-lg text-primary-600 dark:text-primary-300 mb-4">
+            Sorry, we couldn't find the page you're looking for. The page may have been moved, deleted, or the URL might be incorrect.
+          </p>
+          <p class="text-primary-500 dark:text-primary-400">
+            Don't worry though, there's plenty of other content to explore!
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  // Search button functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchButton = document.getElementById('search-button');
+    
+    if (searchButton) {
+      searchButton.addEventListener('click', () => {
+        const event = new CustomEvent('openCommandPalette');
+        window.dispatchEvent(event);
+      });
+    }
+  });
+</script>
+
+<style>
+  .btn-primary {
+    @apply inline-flex items-center px-6 py-3 font-medium rounded-lg transition-all duration-200 hover:shadow-lg transform hover:scale-105;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center px-6 py-3 bg-primary-100 dark:bg-primary-800 text-primary-900 dark:text-primary-100 font-medium rounded-lg hover:bg-primary-200 dark:hover:bg-primary-700 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .btn-outline {
+    @apply inline-flex items-center px-6 py-3 border border-primary-300 dark:border-primary-600 text-primary-900 dark:text-primary-100 font-medium rounded-lg hover:bg-primary-50 dark:hover:bg-primary-800 transition-all duration-200;
+  }
+  
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-outline:focus-visible {
+    @apply outline-none ring-2 ring-highlight-500 ring-offset-2;
+  }
+</style>

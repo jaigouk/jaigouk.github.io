@@ -1,0 +1,223 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import { siteConfig } from '@/config';
+import { shouldShowPost, sortPostsByDate, extractTags } from '@/utils/markdown';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostCard from '@/components/PostCard.astro';
+import Tags from '@/components/Tags.astro';
+import Pagination from '@/components/Pagination.astro';
+import Icon from '@/components/Icon.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const isDev = import.meta.env.DEV;
+  
+  try {
+    // Get all posts
+    const allPosts = await getCollection('posts');
+    const visiblePosts = allPosts.filter(post => shouldShowPost(post, isDev));
+    const sortedPosts = sortPostsByDate(visiblePosts);
+
+    // Extract all unique tags with error handling
+    const allTags = extractTags(sortedPosts);
+
+    if (isDev && allTags.length === 0) {
+    }
+
+    // Generate paths for each tag
+    return allTags.map(tag => ({
+      params: { tag: tag },
+      props: { tag, allPosts: sortedPosts, allTags }
+    }));
+  } catch (error) {
+    if (isDev) {
+    }
+    return [];
+  }
+};
+
+const { tag, allPosts, allTags } = Astro.props as {
+  tag: string;
+  allPosts: any[];
+  allTags: string[];
+};
+const isDev = import.meta.env.DEV;
+
+// Validate tag parameter
+if (!tag || typeof tag !== 'string') {
+  if (isDev) {
+  }
+  // Return 404 or redirect in production, show error in dev
+  if (!isDev) {
+    return Astro.redirect('/404');
+  }
+}
+
+// Filter posts by the current tag with error handling
+let filteredPosts: any[] = [];
+try {
+  filteredPosts = allPosts.filter((post: any) => {
+    if (!post.data.tags) return false;
+    
+    // Handle both string and array tags
+    const postTags = Array.isArray(post.data.tags) ? post.data.tags : [post.data.tags];
+    return postTags.some((postTag: any) => 
+      postTag && typeof postTag === 'string' && postTag.trim() === tag.trim()
+    );
+  });
+} catch (error) {
+  if (isDev) {
+  }
+  filteredPosts = [];
+}
+
+// Pagination
+const postsPerPage = siteConfig.postOptions.postsPerPage;
+const totalPosts = filteredPosts.length;
+const totalPages = Math.ceil(totalPosts / postsPerPage);
+const currentPage = 1; // This is the first page
+const startIndex = 0;
+const endIndex = Math.min(postsPerPage, totalPosts);
+const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+// Generate SEO data
+const pageTitle = `Posts tagged "${tag}"`;
+const pageDescription = `All posts tagged with "${tag}"`;
+
+const seoData = {
+  title: `${pageTitle} | ${siteConfig.title}`,
+  description: pageDescription,
+  canonical: Astro.url.href,
+  ogType: 'website' as const
+};
+
+// Pagination info
+const baseUrl = `/posts/tag/${encodeURIComponent(tag)}`;
+const pagination = {
+  currentPage,
+  totalPages,
+  hasNext: currentPage < totalPages,
+  hasPrev: false,
+  nextUrl: totalPages > 1 ? `${baseUrl}/2` : undefined,
+  prevUrl: undefined
+};
+---
+
+<BaseLayout seoData={seoData}>
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 mb-12" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex items-start justify-between mb-3">
+          <h1 class="text-lg font-bold text-primary-900 dark:text-primary-50">
+            {pageTitle}
+          </h1>
+          <div class="flex items-center space-x-2">
+            <a 
+              href="/rss.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to RSS feed"
+              data-no-swup
+            >
+              <Icon name="rss" class="w-4 h-4 mr-1.5" />
+              RSS Feed
+            </a>
+            <a 
+              href="/feed.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to Atom feed"
+              data-no-swup
+            >
+              <Icon name="atom" class="w-4 h-4 mr-1.5" />
+              Atom Feed
+            </a>
+          </div>
+        </div>
+        <p class="text-base text-primary-600 dark:text-primary-300">
+          Showing <strong>{filteredPosts.length}</strong> posts tagged with 
+          <span class="inline-flex items-center px-2 py-1 bg-highlight-100 dark:bg-highlight-900/30 text-highlight-800 dark:text-highlight-200 rounded text-sm font-medium ml-1">
+            #{tag}
+          </span>
+        </p>
+
+        <div class="mt-4">
+          <a 
+            href="/posts"
+            class="inline-flex items-center text-sm text-primary-600 dark:text-primary-300 hover:text-primary-800 dark:hover:text-primary-200 transition-colors"
+          >
+            <Icon name="arrow-left" class="w-4 h-4 mr-1" />
+            Show all posts
+          </a>
+        </div>
+      </header>
+
+      <div class="relative">
+        <!-- Main content -->
+        <div class="max-w-none">
+          {paginatedPosts.length > 0 ? (
+            <>
+              <!-- Posts list -->
+              <div class="space-y-6 mb-12">
+                {paginatedPosts.map((post, index) => (
+                  <PostCard post={post} context="tags" eager={index < 2} />
+                ))}
+              </div>
+
+              <!-- Pagination -->
+              <Pagination pagination={pagination} baseUrl={baseUrl} />
+            </>
+          ) : (
+            <!-- No posts for selected tag -->
+            <div class="text-center py-16">
+              <Icon name="tag" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
+              <h2 class="text-2xl font-semibold text-primary-900 dark:text-primary-50 mb-4">
+                No posts found
+              </h2>
+              <p class="text-primary-600 dark:text-primary-300 mb-8 max-w-md mx-auto">
+                There are no posts tagged with "{tag}". Try browsing other tags or 
+                <a href="/posts" class="text-primary-600 dark:text-primary-300 hover:underline">view all posts</a>.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <!-- Mobile sidebar - appears below content on mobile/tablet -->
+        <div class="xl:hidden mt-12 space-y-6">
+          <!-- Tags -->
+          {siteConfig.postOptions.tags && allTags.length > 0 && (
+            <Tags tags={allTags} currentTag={tag} />
+          )}
+        </div>
+
+        <!-- Desktop sidebar - floats to the right of the content container -->
+        <div class="hidden xl:block absolute top-0 left-full ml-8 w-64">
+          <div class="sticky top-24 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pb-6">
+            <!-- Tags -->
+            {siteConfig.postOptions.tags && allTags.length > 0 && (
+              <Tags tags={allTags} currentTag={tag} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  /* Enhanced posts page styles */
+  .posts-grid {
+    display: grid;
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .posts-grid {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+  }
+
+  /* Tag highlight in header */
+  .tag-highlight {
+    @apply bg-gradient-to-r from-highlight-500 to-highlight-600 text-white;
+  }
+</style>

@@ -1,0 +1,105 @@
+
+---
+export interface Props {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  size?: 'sm' | 'md' | 'lg';
+  href?: string;
+  target?: string;
+  rel?: string;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  class?: string;
+}
+
+const {
+  variant = 'primary',
+  size = 'md',
+  href,
+  target,
+  rel,
+  type = 'button',
+  disabled = false,
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+// Base button classes
+const baseClasses = 'btn inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background cursor-pointer border no-underline';
+
+// Size variations
+const sizeClasses = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-sm',
+  lg: 'px-6 py-3 text-base'
+};
+
+// Variant classes that use your existing design tokens
+const variantClasses = {
+  primary: 'btn-primary',
+  secondary: 'btn-secondary',
+  outline: 'btn-outline',
+  ghost: 'btn-ghost'
+};
+
+const allClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
+
+// Determine if this should be a link or button
+const Element = href ? 'a' : 'button';
+---
+
+{Element === 'a' ? (
+  <a
+    href={href}
+    target={target}
+    rel={rel}
+    class={allClasses}
+    {...rest}
+  >
+    <slot />
+  </a>
+) : (
+  <button
+    type={type}
+    disabled={disabled}
+    class={allClasses}
+    {...rest}
+  >
+    <slot />
+  </button>
+)}
+
+<style>
+  /* Ensure buttons work well in prose content */
+  .btn {
+    text-decoration: none !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    user-select: none;
+    vertical-align: middle;
+  }
+
+  .btn:hover {
+    text-decoration: none !important;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Special handling for buttons in prose/markdown content */
+  .prose .btn {
+    margin: 0.25rem 0.125rem;
+    font-weight: 500;
+  }
+
+  /* Ensure proper focus states */
+  .btn:focus-visible {
+    outline: none;
+    ring: 2px;
+    ring-offset: 2px;
+  }
+</style>

@@ -1,0 +1,77 @@
+{
+  "name": "astro-modular",
+  "version": "0.8.1",
+  "type": "module",
+  "description": "A flexible blog theme designed for Obsidian users.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cross-env ASTRO_CONTENT_COLLECTION_CACHE=false node scripts/setup-dev.mjs && node scripts/sync-images.js && node scripts/process-aliases.js && node scripts/generate-deployment-config.js && node scripts/generate-graph-data.js && node scripts/dev-with-port.js",
+    "build": "node scripts/sync-images.js && node scripts/process-aliases.js && node scripts/generate-deployment-config.js && node scripts/generate-graph-data.js && astro build",
+    "preview": "pnpm run build && node scripts/dev-with-port.js preview",
+    "sync-images": "node scripts/sync-images.js",
+    "process-aliases": "node scripts/process-aliases.js",
+    "generate-deployment-config": "node scripts/generate-deployment-config.js",
+    "generate-deployment-config:dry-run": "node scripts/generate-deployment-config.js --dry-run",
+    "generate-deployment-config:validate": "node scripts/generate-deployment-config.js --validate",
+    "generate-graph-data": "node scripts/generate-graph-data.js",
+    "check-images": "node scripts/check-missing-images.js",
+    "version": "node scripts/get-version.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "astro",
+    "blog",
+    "theme",
+    "obsidian"
+  ],
+  "author": "David V. Kimball",
+  "license": "MIT",
+  "dependencies": {
+    "@astrojs/check": "0.9.6-beta.1",
+    "@astrojs/mdx": "5.0.0-beta.1",
+    "@astrojs/rss": "4.0.15-beta.1",
+    "@astrojs/sitemap": "3.6.1-beta.2",
+    "@astrojs/tailwind": "^6.0.2",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fortawesome/fontawesome-svg-core": "^7.0.1",
+    "@fortawesome/free-brands-svg-icons": "^7.0.1",
+    "@swup/astro": "^1.0.0",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/d3": "^7.4.3",
+    "astro": "6.0.0-beta.1",
+    "astro-redirect-from": "^1.3.3",
+    "d3": "^7.9.0",
+    "fuse.js": "^7.1.0",
+    "katex": "^0.16.9",
+    "lucide": "^0.542.0",
+    "mermaid": "^11.1.0",
+    "rehype-autolink-headings": "^7.1.0",
+    "rehype-katex": "^7.0.0",
+    "rehype-slug": "^6.0.0",
+    "remark-breaks": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "remark-reading-time": "^2.0.2",
+    "remark-toc": "^9.0.0",
+    "sharp": "^0.34.3",
+    "swup": "^4.8.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.2",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/hast": "^3.0.4",
+    "@types/unist": "^3.0.3",
+    "cross-env": "^10.0.0",
+    "vite": "^7.1.12",
+    "wrangler": "^4.46.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "swup"
+    ]
+  }
+}

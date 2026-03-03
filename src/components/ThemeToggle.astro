@@ -1,0 +1,49 @@
+---
+import Icon from './Icon.astro';
+---
+<!-- Theme toggle component -->
+<button
+  id="theme-toggle"
+  class="p-2 text-primary-500 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors duration-200"
+  aria-label="Toggle between light and dark theme"
+>
+  <Icon name="sun" class="w-5 h-5 dark:hidden" />
+  <Icon name="moon" class="w-5 h-5 hidden dark:block" />
+</button>
+
+<script>
+  // Global theme toggle function
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.contains('dark');
+    const newTheme = isDark ? 'light' : 'dark';
+
+    // Update theme
+    localStorage.setItem('theme', newTheme);
+    html.classList.remove('light', 'dark');
+    html.classList.add(newTheme);
+
+    // Favicon is handled by system theme detection, not manual theme changes
+
+    // Icons are now static SVG - no re-initialization needed
+
+    // Dispatch theme change event
+    window.dispatchEvent(new CustomEvent('themechange', {
+      detail: { theme: newTheme }
+    }));
+  }
+
+  // Make toggle function globally accessible
+  (window as any).toggleTheme = toggleTheme;
+
+  function initThemeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+
+    if (themeToggle) {
+      themeToggle.addEventListener('click', toggleTheme);
+    }
+  }
+
+  // Initialize on load
+  document.addEventListener('DOMContentLoaded', initThemeToggle);
+</script>

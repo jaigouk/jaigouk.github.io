@@ -1,0 +1,2184 @@
+---
+import { siteConfig, getFontFamily, getGoogleFontsUrl, shouldLoadLocalFonts, shouldLoadCdnFonts, getFontDisplay, getThemeDisplayName } from '@/config';
+import type { SEOData } from '@/types';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import CommandPalette from '@/components/CommandPalette.astro';
+import ThemeSelector from '@/components/ThemeSelector.astro';
+import GraphModal from '@/components/GraphModal.astro';
+import ScrollToTop from '@/components/ScrollToTop.astro';
+import Lightbox from '@/components/Lightbox.astro';
+import ImageGalleryManager from '@/components/ImageGalleryManager.astro';
+import CategoryFilter from '@/components/CategoryFilter.astro';
+import '@/styles/global.css';
+
+// Import local fonts if configured
+if (shouldLoadLocalFonts()) {
+  // Import Inter font
+  if (siteConfig.fonts.families.body === 'Inter' || siteConfig.fonts.families.heading === 'Inter') {
+    import('@fontsource/inter/300.css');
+    import('@fontsource/inter/400.css');
+    import('@fontsource/inter/500.css');
+    import('@fontsource/inter/600.css');
+    import('@fontsource/inter/700.css');
+  }
+
+  // Import JetBrains Mono font
+  if (siteConfig.fonts.families.mono === 'JetBrains Mono') {
+    import('@fontsource/jetbrains-mono/300.css');
+    import('@fontsource/jetbrains-mono/400.css');
+    import('@fontsource/jetbrains-mono/500.css');
+    import('@fontsource/jetbrains-mono/600.css');
+    import('@fontsource/jetbrains-mono/700.css');
+  }
+}
+
+export interface Props {
+  seoData: SEOData;
+  bodyClass?: string;
+}
+
+const { seoData, bodyClass = '' } = Astro.props;
+
+// Determine scrollbar class based on configuration
+const scrollbarClass = siteConfig.hideScrollBar ? '' : 'show-scrollbars';
+---
+
+<!DOCTYPE html>
+<html lang={siteConfig.language} class={`scrollbar-hide ${scrollbarClass}`} data-theme-config={siteConfig.theme} data-custom-theme-file={siteConfig.customThemeFile} data-available-themes={JSON.stringify(siteConfig.availableThemes)} data-command-palette-enabled={siteConfig.commandPalette.enabled} data-command-palette-change-theme={siteConfig.commandPalette.quickActions.changeTheme} data-feature-button={siteConfig.featureButton} data-favicon-theme-adaptive={siteConfig.faviconThemeAdaptive}>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- SEO Meta Tags -->
+  <title>{seoData.title}</title>
+  <meta name="description" content={seoData.description}>
+  <link rel="canonical" href={seoData.canonical}>
+
+  <!-- Robots meta tag -->
+  {seoData.noIndex && (
+    <meta name="robots" content="noindex, nofollow">
+  )}
+
+  <!-- Open Graph -->
+  <meta property="og:title" content={seoData.title}>
+  <meta property="og:description" content={seoData.description}>
+  <meta property="og:url" content={seoData.canonical}>
+  <meta property="og:type" content={seoData.ogType}>
+  <meta property="og:site_name" content={siteConfig.title}>
+
+  {seoData.ogImage ? (
+    <>
+      <meta property="og:image" content={seoData.ogImage.url}>
+      <meta property="og:image:alt" content={seoData.ogImage.alt}>
+      <meta property="og:image:width" content={seoData.ogImage.width.toString()}>
+      <meta property="og:image:height" content={seoData.ogImage.height.toString()}>
+    </>
+  ) : (
+    <>
+      <meta property="og:image" content="/open-graph.png">
+      <meta property="og:image:alt" content={siteConfig.defaultOgImageAlt}>
+      {/* Assuming default image dimensions, adjust if known */}
+      <meta property="og:image:width" content="1200">
+      <meta property="og:image:height" content="630">
+    </>
+  )}
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content={seoData.title}>
+  <meta name="twitter:description" content={seoData.description}>
+  {seoData.ogImage ? (
+    <>
+      <meta name="twitter:image" content={seoData.ogImage.url}>
+      <meta name="twitter:image:alt" content={seoData.ogImage.alt}>
+    </>
+  ) : (
+    <>
+      <meta name="twitter:image" content="/open-graph.png">
+      <meta name="twitter:image:alt" content={siteConfig.defaultOgImageAlt}>
+    </>
+  )}
+
+  <!-- Twitter Widget Theme Configuration -->
+  <meta name="twitter:widgets:theme" content="preferred_color_scheme">
+  <meta name="twitter:widgets:border-color" content="rgb(var(--color-primary-200))">
+
+  <!-- Article specific meta tags -->
+  {seoData.ogType === 'article' && (
+    <>
+      {seoData.publishedTime && <meta property="article:published_time" content={seoData.publishedTime}>}
+      {seoData.modifiedTime && <meta property="article:modified_time" content={seoData.modifiedTime}>}
+      {seoData.tags && seoData.tags.map(tag => (
+        <meta property="article:tag" content={tag}>
+      ))}
+    </>
+  )}
+
+  <!-- Default favicon (will be updated by JavaScript) -->
+  <link rel="icon" href="/favicon.png" />
+
+  <!-- Command Palette Config for Client Script -->
+  <meta name="command-palette-shortcut" content={siteConfig.commandPalette.shortcut || ''}>
+
+  <!-- Preconnect to external domains for faster resource loading -->
+  {shouldLoadCdnFonts() && (
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    </>
+  )}
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+  <!-- Fonts with optimized loading -->
+  {shouldLoadCdnFonts() && (
+    <>
+      <link href={getGoogleFontsUrl(siteConfig.fonts.families.heading, siteConfig.fonts.families.body)} rel="stylesheet" media="print" onload="this.media='all'">
+      <noscript><link href={getGoogleFontsUrl(siteConfig.fonts.families.heading, siteConfig.fonts.families.body)} rel="stylesheet"></noscript>
+    </>
+  )}
+
+  <!-- Font Awesome Icons now handled by hybrid Icon component -->
+
+  <!-- Swup handled via Astro integration -->
+
+
+  <!-- Font CSS Variables -->
+  <style define:vars={{
+    fontHeading: getFontFamily(siteConfig.fonts.families.heading),
+    fontProse: getFontFamily(siteConfig.fonts.families.body),
+    fontMono: getFontFamily(siteConfig.fonts.families.mono),
+    fontDisplay: getFontDisplay()
+  }}>
+    :root {
+      --font-heading: var(--fontHeading);
+      --font-prose: var(--fontProse);
+      --font-mono: var(--fontMono);
+      --font-display: var(--fontDisplay);
+    }
+  </style>
+
+  <!-- Theme configuration and initialization -->
+  <script is:inline>
+    // Set the default theme from config - read from data attributes
+    window.siteConfig = {
+      theme: document.documentElement.getAttribute('data-theme-config') || 'oxygen',
+      customThemeFile: document.documentElement.getAttribute('data-custom-theme-file') || 'custom',
+      availableThemes: JSON.parse(document.documentElement.getAttribute('data-available-themes') || '"default"'),
+      commandPalette: {
+        enabled: document.documentElement.getAttribute('data-command-palette-enabled') === 'true',
+        quickActions: {
+          changeTheme: document.documentElement.getAttribute('data-command-palette-change-theme') === 'true'
+        }
+      },
+      featureButton: document.documentElement.getAttribute('data-feature-button') || 'none',
+      faviconThemeAdaptive: document.documentElement.getAttribute('data-favicon-theme-adaptive') === 'true'
+    };
+
+    // Check if theme switching is available in the UI
+    function isThemeSwitchingAvailable() {
+      const availableThemes = window.siteConfig?.availableThemes || 'default';
+      const hasMultipleThemes = availableThemes === 'default' || (Array.isArray(availableThemes) && availableThemes.length > 1);
+
+      // Check if theme switching is available via command palette
+      const commandPaletteEnabled = window.siteConfig?.commandPalette?.enabled || false;
+      const commandPaletteThemeEnabled = window.siteConfig?.commandPalette?.quickActions?.changeTheme || false;
+
+      // Check if theme switching is available via feature button
+      const featureButton = window.siteConfig?.featureButton || 'none';
+      const featureButtonThemeEnabled = featureButton === 'theme';
+
+      // Theme switching is available if:
+      // 1. There are multiple themes available AND
+      // 2. Either command palette theme switching OR feature button theme switching is enabled
+      return hasMultipleThemes && (commandPaletteThemeEnabled || featureButtonThemeEnabled);
+    }
+
+    // Validate if a theme is in the available themes list
+    function isThemeAvailable(theme) {
+      const availableThemes = window.siteConfig?.availableThemes || 'default';
+      const selectedTheme = window.siteConfig?.theme;
+
+      // Always allow the selected theme, even if not in availableThemes
+      if (theme === selectedTheme) {
+        return true;
+      }
+
+      // Check if theme is in availableThemes
+      return availableThemes === 'default' || (Array.isArray(availableThemes) && availableThemes.includes(theme));
+    }
+
+    // Initialize Twitter theme immediately (before Twitter script loads)
+    function initializeTwitterThemeImmediately() {
+      // Wait for theme to be applied, then initialize Twitter theme
+      const checkThemeAndInit = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+        const newTheme = isDark ? 'dark' : 'light';
+        
+        // Update the meta tag immediately
+        const themeMeta = document.querySelector('meta[name="twitter:widgets:theme"]');
+        if (themeMeta) {
+          themeMeta.setAttribute('content', newTheme);
+        }
+        
+        // Update data-theme attributes on any existing blockquotes
+        const twitterEmbeds = document.querySelectorAll('.twitter-tweet');
+        twitterEmbeds.forEach(embed => {
+          embed.setAttribute('data-theme', newTheme);
+        });
+      };
+
+      // Try immediately
+      checkThemeAndInit();
+      
+      // Also try after theme is applied (when deferred script runs)
+      setTimeout(checkThemeAndInit, 500);
+      setTimeout(checkThemeAndInit, 1000);
+    }
+
+    // Initialize Twitter theme immediately
+    initializeTwitterThemeImmediately();
+
+    // Twitter theme change handling - force iframe update
+    function handleTwitterThemeChange(isDark) {
+      const newTheme = isDark ? 'dark' : 'light';
+      
+      // Update the meta tag
+      const themeMeta = document.querySelector('meta[name="twitter:widgets:theme"]');
+      if (themeMeta) {
+        themeMeta.setAttribute('content', newTheme);
+      }
+      
+      // Force update all Twitter iframes by updating their src URLs
+      const twitterIframes = document.querySelectorAll('iframe[src*="platform.twitter.com/embed/Tweet.html"]');
+      twitterIframes.forEach(iframe => {
+        const currentSrc = iframe.src;
+        // Replace theme parameter in URL
+        const updatedSrc = currentSrc.replace(/theme=[^&]+/, `theme=${newTheme}`);
+        if (updatedSrc !== currentSrc) {
+          iframe.src = updatedSrc;
+        }
+      });
+    }
+
+    // Giscus theme change handling
+    function handleGiscusThemeChange(isDark) {
+      // Giscus theme changes are handled by the Giscus client script
+      // This is just a placeholder to prevent the error
+    }
+
+
+    // Reset theme to default and clear user preferences
+    function resetThemeToDefault() {
+      const configTheme = window.siteConfig?.theme || 'oxygen';
+
+      // Clear all theme preferences
+      localStorage.removeItem('themePreference');
+      localStorage.removeItem('selectedTheme');
+
+      // Set theme to config default
+      document.documentElement.setAttribute('data-theme', configTheme);
+
+      // Update CSS custom properties
+      updateThemeCSSVariables(configTheme).catch(console.error);
+
+      return configTheme;
+    }
+
+    // Get theme without clearing preferences (for initialization)
+    function getThemeWithoutClearing() {
+      const configTheme = window.siteConfig?.theme || 'oxygen';
+
+      // Check if theme switching is available in the UI
+      const themeSwitchingAvailable = isThemeSwitchingAvailable();
+
+      // If theme switching is NOT available, ALWAYS use default theme and clear preferences
+      if (!themeSwitchingAvailable) {
+        // Clear any stored theme preferences since theme switching is not available
+        localStorage.removeItem('themePreference');
+        localStorage.removeItem('selectedTheme');
+        return configTheme;
+      }
+
+      // Theme switching IS available, so respect user preferences
+      const themePreference = localStorage.getItem('themePreference');
+      const hasUserPreference = themePreference !== null;
+
+      if (hasUserPreference) {
+        // User has made a theme choice before
+        if (themePreference === 'default') {
+          // User explicitly chose to follow the site's default theme
+          return configTheme;
+        } else if (themePreference && themePreference.startsWith('specific:')) {
+          // User chose a specific theme
+          const specificTheme = themePreference.replace('specific:', '');
+
+          // Validate theme is still available
+          if (isThemeAvailable(specificTheme)) {
+            return specificTheme;
+          } else {
+            // Theme is no longer available, fall back to default
+            return configTheme;
+          }
+        }
+      } else {
+        // User has never made a theme choice
+        // Check for legacy selectedTheme key
+        const storedTheme = localStorage.getItem('selectedTheme');
+        if (storedTheme) {
+          // Migrate legacy preference
+          if (storedTheme === configTheme) {
+            // Legacy theme was the default, clear preference to follow default
+            localStorage.removeItem('selectedTheme');
+            return configTheme;
+          } else {
+            // Legacy theme was custom, migrate to new system
+            if (isThemeAvailable(storedTheme)) {
+              localStorage.setItem('themePreference', `specific:${storedTheme}`);
+              localStorage.removeItem('selectedTheme');
+              return storedTheme;
+            } else {
+              // Theme is no longer available, fall back to default
+              return configTheme;
+            }
+          }
+        } else {
+          // No user preference at all, always follow config default
+          return configTheme;
+        }
+      }
+
+      return configTheme;
+    }
+
+    // Initialize theme before page renders to prevent flash
+    async function initTheme() {
+      // Handle dark/light mode
+      const storedMode = localStorage.getItem('theme');
+      const systemMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      const mode = storedMode || systemMode;
+
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(mode);
+
+      // Handle theme selection (color scheme)
+      const theme = getThemeWithoutClearing();
+
+      document.documentElement.setAttribute('data-theme', theme);
+
+      // Update CSS custom properties for the initial theme
+      try {
+        await updateThemeCSSVariables(theme);
+      } catch (error) {
+        console.error('Error updating theme CSS variables:', error);
+      }
+    }
+
+    // Initialize immediately after config is set
+    initTheme().catch(console.error);
+
+    // Set favicon based on system theme
+    function setFavicon() {
+      const faviconThemeAdaptive = window.siteConfig?.faviconThemeAdaptive ?? true;
+      
+      let faviconUrl;
+      
+      if (faviconThemeAdaptive) {
+        // Use theme-based favicons based on browser preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+
+        if (prefersDark) {
+          faviconUrl = '/favicon-dark.png';
+        } else if (prefersLight) {
+          faviconUrl = '/favicon-light.png';
+        } else {
+          faviconUrl = '/favicon.png';
+        }
+      } else {
+        // Always use static favicon
+        faviconUrl = '/favicon.png';
+      }
+
+      // Remove ALL existing favicon links
+      const existingFavicons = document.querySelectorAll('link[rel="icon"]');
+      existingFavicons.forEach(link => link.remove());
+
+      // Create new favicon link
+      const faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      faviconLink.type = 'image/png';
+      faviconLink.href = `${faviconUrl}?v=${Date.now()}`;
+      document.head.appendChild(faviconLink);
+
+      // Force favicon refresh by updating page title
+      const originalTitle = document.title;
+      document.title = originalTitle;
+    }
+
+    // Set favicon on page load
+    setFavicon();
+
+    // View Transitions disabled - no need for astro:page-load
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (window.location.hostname === 'localhost' || window.location.hostname.includes('localhost')) {
+      }
+      if (!localStorage.getItem('theme')) {
+        const newTheme = e.matches ? 'dark' : 'light';
+        localStorage.setItem('theme', newTheme);
+        initTheme();
+      } else {
+        if (window.location.hostname === 'localhost' || window.location.hostname.includes('localhost')) {
+        }
+      }
+      // Only update favicon if theme adaptive is enabled
+      const faviconThemeAdaptive = window.siteConfig?.faviconThemeAdaptive ?? true;
+      if (faviconThemeAdaptive) {
+        setFavicon();
+      }
+    });
+
+    // Global theme toggle function - always available regardless of button visibility
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      const newMode = isDark ? 'light' : 'dark';
+
+      // Update dark/light mode
+      localStorage.setItem('theme', newMode);
+      html.classList.remove('light', 'dark');
+      html.classList.add(newMode);
+
+      // Dispatch theme change event for dark/light mode
+      window.dispatchEvent(new CustomEvent('themechange', {
+        detail: { mode: newMode }
+      }));
+    }
+
+    // Global function to change theme (color scheme)
+    async function changeTheme(theme) {
+      // Check if theme switching is available in the UI
+      if (!isThemeSwitchingAvailable()) {
+        return; // Silent no-op if theme switching is not available
+      }
+
+      // Validate theme is in available themes list
+      if (!isThemeAvailable(theme)) {
+        return; // Silent no-op if theme is not available
+      }
+
+      // Store theme preference based on selection
+      const configTheme = window.siteConfig?.theme || 'oxygen';
+
+      if (theme === configTheme) {
+        // User selected the default theme - clear preference to follow default
+        localStorage.removeItem('themePreference');
+        localStorage.removeItem('selectedTheme');
+      } else {
+        // User selected a specific theme - store as 'specific:theme-name'
+        localStorage.setItem('themePreference', `specific:${theme}`);
+        // Also maintain backward compatibility with selectedTheme for now
+        localStorage.setItem('selectedTheme', theme);
+      }
+
+      document.documentElement.setAttribute('data-theme', theme);
+
+      // Update CSS custom properties for the selected theme
+      await updateThemeCSSVariables(theme);
+
+      // Dispatch theme change event for color scheme
+      window.dispatchEvent(new CustomEvent('themechange', {
+        detail: { theme: theme }
+      }));
+    }
+
+    // Function to update CSS custom properties based on theme
+    async function updateThemeCSSVariables(themeName) {
+
+      // Load all themes dynamically
+      const themes = {
+        minimal: {
+          primary: {
+            50: '#fafafa', 100: '#f5f5f5', 200: '#e5e5e5', 300: '#d4d4d4',
+            400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040',
+            800: '#262626', 900: '#212121', 950: '#1a1a1a'
+          },
+          highlight: {
+            50: '#f0f7f9', 100: '#e1eff3', 200: '#c3dfe7', 300: '#a5cfdb',
+            400: '#87bfcf', 500: '#708794', 600: '#5a6d77', 700: '#43535a',
+            800: '#2d383c', 900: '#161d1f'
+          }
+        },
+        oxygen: {
+          primary: {
+            50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
+            400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155',
+            800: '#1e293b', 900: '#0f172a', 950: '#020617'
+          },
+          highlight: {
+            50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
+            400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+            800: '#075985', 900: '#0c4a6e'
+          }
+        },
+        atom: {
+          primary: {
+            50: '#fafafa', 100: '#eaeaeb', 200: '#dbdbdc', 300: '#d8d8d9',
+            400: '#8e8e90', 500: '#71717a', 600: '#52525b', 700: '#3f3f46',
+            800: '#282c34', 900: '#21252c', 950: '#181a1f'
+          },
+          highlight: {
+            50: '#e6f3ff', 100: '#cce7ff', 200: '#99cfff', 300: '#66b7ff',
+            400: '#578af2', 500: '#3d74e2', 600: '#1a92ff', 700: '#0369a1',
+            800: '#075985', 900: '#0c4a6e'
+          }
+        },
+        dracula: {
+          primary: {
+            50: '#ffffff', 100: '#faf8ff', 200: '#e2e8f0', 300: '#cbd5e1',
+            400: '#94a3b8', 500: '#6272a4', 600: '#44475a', 700: '#3d4050',
+            800: '#282a37', 900: '#21222c', 950: '#191a21'
+          },
+          highlight: {
+            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd',
+            400: '#a78bfa', 500: '#8b5cf6', 600: '#a474e6', 700: '#8b5cf6',
+            800: '#7c3aed', 900: '#6d28d9'
+          }
+        },
+        // Add more themes as needed - this will be expanded
+        ayu: {
+          primary: {
+            50: '#fefefe', 100: '#fcfcfc', 200: '#f8f8f8', 300: '#f0f0f0',
+            400: '#d5d5d5', 500: '#a8a8a8', 600: '#7a7a7a', 700: '#545454',
+            800: '#2f2f2f', 900: '#1f1f1f', 950: '#0f1419'
+          },
+          highlight: {
+            50: '#fff4e6', 100: '#ffe8cc', 200: '#ffd199', 300: '#ffba66',
+            400: '#ff9933', 500: '#e6913d', 600: '#cc7a2e', 700: '#b36624',
+            800: '#99521a', 900: '#804010'
+          }
+        },
+        catppuccin: {
+          primary: {
+            50: '#faf4ed', 100: '#f2e9e1', 200: '#e9d8d0', 300: '#ddbea9',
+            400: '#a6a9b8', 500: '#7f849c', 600: '#6c7086', 700: '#585b70',
+            800: '#313244', 900: '#1e1e2e', 950: '#181825'
+          },
+          highlight: {
+            50: '#fcf0ee', 100: '#f7ddd8', 200: '#efbbb1', 300: '#e7998a',
+            400: '#df7763', 500: '#dcb6af', 600: '#c49a8f', 700: '#ad7e6f',
+            800: '#95624f', 900: '#7d462f'
+          }
+        },
+        charcoal: {
+          primary: {
+            50: '#ffffff', 100: '#ffffff', 200: '#f8f8f8', 300: '#e0e0e0',
+            400: '#c0c0c0', 500: '#808080', 600: '#606060', 700: '#404040',
+            800: '#202020', 900: '#000000', 950: '#000000'
+          },
+          highlight: {
+            50: '#ffffff', 100: '#f0f0f0', 200: '#e0e0e0', 300: '#d0d0d0',
+            400: '#c0c0c0', 500: '#808080', 600: '#606060', 700: '#404040',
+            800: '#202020', 900: '#000000'
+          }
+        },
+        everforest: {
+          primary: {
+            50: '#fdf6e3', 100: '#f4f4f1', 200: '#efebd4', 300: '#e6e2cc',
+            400: '#d3c6aa', 500: '#a89984', 600: '#859289', 700: '#7a8478',
+            800: '#4f5b58', 900: '#343f44', 950: '#2d353b'
+          },
+          highlight: {
+            50: '#f0f9f0', 100: '#dcf2dc', 200: '#b8e6b8', 300: '#9dd9bd',
+            400: '#83c092', 500: '#a7c080', 600: '#87a987', 700: '#6d926d',
+            800: '#5a7a5a', 900: '#4a6635'
+          }
+        },
+        flexoki: {
+          primary: {
+            50: '#fffcf0', 100: '#f2f0e5', 200: '#e6e4d9', 300: '#dad8ce',
+            400: '#cecdc3', 500: '#b7b5ac', 600: '#9c9a91', 700: '#878681',
+            800: '#575653', 900: '#1c1b1a', 950: '#100f0f'
+          },
+          highlight: {
+            50: '#e6f7f6', 100: '#cceeec', 200: '#99ddd9', 300: '#66ccc6',
+            400: '#4dbdb5', 500: '#319089', 600: '#287a74', 700: '#1f655f',
+            800: '#16504a', 900: '#0d3b35'
+          }
+        },
+        gruvbox: {
+          primary: {
+            50: '#fbf1c7', 100: '#f2e5bc', 200: '#ebdbb2', 300: '#d5c4a1',
+            400: '#bdae93', 500: '#a89984', 600: '#928374', 700: '#7c6f64',
+            800: '#504945', 900: '#3c3836', 950: '#1d2021'
+          },
+          highlight: {
+            50: '#fef2e6', 100: '#fde2cc', 200: '#fbc599', 300: '#f9a866',
+            400: '#f78b33', 500: '#d79921', 600: '#b8821c', 700: '#996b17',
+            800: '#7a5412', 900: '#5b3d0d'
+          }
+        },
+        macos: {
+          primary: {
+            50: '#ffffff', 100: '#f9f9f9', 200: '#f0f0f0', 300: '#e0e0e0',
+            400: '#c0c0c0', 500: '#a0a0a0', 600: '#808080', 700: '#606060',
+            800: '#404040', 900: '#1e1e1e', 950: '#141414'
+          },
+          highlight: {
+            50: '#e6f3ff', 100: '#cce7ff', 200: '#99cfff', 300: '#66b7ff',
+            400: '#339fff', 500: '#007aff', 600: '#0056cc', 700: '#004299',
+            800: '#002e66', 900: '#001a33'
+          }
+        },
+        nord: {
+          primary: {
+            50: '#eceff4', 100: '#e5e9f0', 200: '#d8dee9', 300: '#c5d0e1',
+            400: '#a3b5cc', 500: '#81a1c1', 600: '#668bb3', 700: '#5e81ac',
+            800: '#434c5e', 900: '#3b4252', 950: '#2e3440'
+          },
+          highlight: {
+            50: '#e8f4f8', 100: '#d1e9f2', 200: '#a3d3e5', 300: '#75bdd8',
+            400: '#5e94b8', 500: '#5e81ac', 600: '#4c729c', 700: '#3a5f7d',
+            800: '#2e4c63', 900: '#233a4a'
+          }
+        },
+        obsidian: {
+          primary: {
+            50: '#f5f5f5', 100: '#e5e5e5', 200: '#d4d4d4', 300: '#a3a3a3',
+            400: '#737373', 500: '#525252', 600: '#404040', 700: '#262626',
+            800: '#1e1e1e', 900: '#171717', 950: '#0a0a0a'
+          },
+          highlight: {
+            50: '#f3f0ff', 100: '#e9e2ff', 200: '#d6c7ff', 300: '#bba3ff',
+            400: '#9c75ff', 500: '#8257e7', 600: '#7247cc', 700: '#6238b0',
+            800: '#522994', 900: '#441f78'
+          }
+        },
+        'rose-pine': {
+          primary: {
+            50: '#faf4ed', 100: '#f2e9e1', 200: '#e9d8d0', 300: '#ddbea9',
+            400: '#c5a590', 500: '#908caa', 600: '#6e6a86', 700: '#56526e',
+            800: '#403d52', 900: '#26233a', 950: '#191724'
+          },
+          highlight: {
+            50: '#fdf2f4', 100: '#fbe5ea', 200: '#f7cbd4', 300: '#f3b1bf',
+            400: '#ef97a9', 500: '#eb6f92', 600: '#d65577', 700: '#c13b5c',
+            800: '#ab2142', 900: '#960727'
+          }
+        },
+        sky: {
+          primary: {
+            50: '#f7f6f4', 100: '#ededec', 200: '#e8e7e4', 300: '#dbdbda',
+            400: '#aaa9a5', 500: '#72706c', 600: '#585d5f', 700: '#4b5053',
+            800: '#373c3f', 900: '#2f3437', 950: '#232729'
+          },
+          highlight: {
+            50: '#e6f4f8', 100: '#cce9f2', 200: '#99d3e5', 300: '#66bdd8',
+            400: '#46aad0', 500: '#2eaadc', 600: '#2592c4', 700: '#1c79ac',
+            800: '#136194', 900: '#0a487c'
+          }
+        },
+        solarized: {
+          primary: {
+            50: '#fdf6e3', 100: '#eee8d5', 200: '#e4dcc1', 300: '#d6ceaa',
+            400: '#b8a882', 500: '#93a1a1', 600: '#839496', 700: '#657b83',
+            800: '#586e75', 900: '#073642', 950: '#002b36'
+          },
+          highlight: {
+            50: '#e6f3ff', 100: '#cce7ff', 200: '#99cfff', 300: '#66b7ff',
+            400: '#339fff', 500: '#268bd2', 600: '#1e6fa8', 700: '#16537e',
+            800: '#0e3754', 900: '#061b2a'
+          }
+        },
+        things: {
+          primary: {
+            50: '#ffffff', 100: '#f5f6f8', 200: '#eef0f4', 300: '#d8dadd',
+            400: '#c1c3c6', 500: '#a9abb0', 600: '#7d7f84', 700: '#6c6e70',
+            800: '#45464a', 900: '#24262a', 950: '#17191c'
+          },
+          highlight: {
+            50: '#e6f3ff', 100: '#cce7ff', 200: '#99cfff', 300: '#66b7ff',
+            400: '#4d95f7', 500: '#1b61c2', 600: '#1c88dd', 700: '#1e40af',
+            800: '#1e3a8a', 900: '#172554'
+          }
+        }
+      };
+
+      // Handle custom themes (both "custom" and custom theme filenames)
+      const builtInThemes = [
+        'minimal', 'oxygen', 'atom', 'ayu', 'catppuccin', 'charcoal', 'dracula',
+        'everforest', 'flexoki', 'gruvbox', 'macos', 'nord', 'obsidian',
+        'rose-pine', 'sky', 'solarized', 'things', 'custom'
+      ];
+
+      if (themeName === 'custom' || !builtInThemes.includes(themeName)) {
+        let customThemeFile;
+
+        if (themeName === 'custom') {
+          // Use the configured custom theme file
+          customThemeFile = window.siteConfig?.customThemeFile || 'custom';
+        } else {
+          // Use the theme name as the custom theme file
+          customThemeFile = themeName;
+        }
+
+        // Try to load the custom theme
+        try {
+          // Import the custom theme dynamically
+          const customThemeModule = await import(`/src/themes/custom/${customThemeFile}.ts`);
+
+          // Look for the theme export - try different possible export names
+          let themeData = null;
+          if (customThemeModule.customTheme) {
+            themeData = customThemeModule.customTheme;
+          } else if (customThemeModule[`${customThemeFile}Theme`]) {
+            // Try filename + "Theme" (e.g., minimalismTheme)
+            themeData = customThemeModule[`${customThemeFile}Theme`];
+          } else if (customThemeModule.default) {
+            // Try default export
+            themeData = customThemeModule.default;
+          } else {
+            // Look for any export that looks like a theme object
+            const exports = Object.keys(customThemeModule);
+            const themeExport = exports.find(key =>
+              customThemeModule[key] &&
+              typeof customThemeModule[key] === 'object' &&
+              customThemeModule[key].primary &&
+              customThemeModule[key].highlight
+            );
+            if (themeExport) {
+              themeData = customThemeModule[themeExport];
+            }
+          }
+
+          if (themeData) {
+            themes[themeName] = themeData;
+          } else {
+            // Fallback if custom theme doesn't export properly
+            console.warn(`Custom theme "${customThemeFile}" doesn't export theme data properly. Available exports:`, Object.keys(customThemeModule));
+            themes[themeName] = {
+              primary: {
+                50: '#ffffff', 100: '#f8f8f8', 200: '#e8e8e8', 300: '#d0d0d0',
+                400: '#a0a0a0', 500: '#808080', 600: '#606060', 700: '#404040',
+                800: '#202020', 900: '#101010', 950: '#000000'
+              },
+              highlight: {
+                50: '#f0f8ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
+                400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+                800: '#075985', 900: '#0c4a6e', 950: '#082f49'
+              }
+            };
+          }
+        } catch (error) {
+          console.warn(`Could not load custom theme "${customThemeFile}", using fallback:`, error);
+          // Fallback custom theme
+          themes[themeName] = {
+            primary: {
+              50: '#ffffff', 100: '#f8f8f8', 200: '#e8e8e8', 300: '#d0d0d0',
+              400: '#a0a0a0', 500: '#808080', 600: '#606060', 700: '#404040',
+              800: '#202020', 900: '#101010', 950: '#000000'
+            },
+            highlight: {
+              50: '#f0f8ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
+              400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+              800: '#075985', 900: '#0c4a6e', 950: '#082f49'
+            }
+          };
+        }
+      }
+
+      const theme = themes[themeName] || themes.oxygen;
+      const root = document.documentElement;
+
+      // Update primary colors
+      Object.entries(theme.primary).forEach(([shade, color]) => {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          root.style.setProperty(`--color-primary-${shade}`, `${rgb.r} ${rgb.g} ${rgb.b}`);
+        }
+      });
+
+      // Update highlight colors
+      Object.entries(theme.highlight).forEach(([shade, color]) => {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          root.style.setProperty(`--color-highlight-${shade}`, `${rgb.r} ${rgb.g} ${rgb.b}`);
+        }
+      });
+    }
+
+    // Helper function to convert hex to RGB
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    }
+
+    // Make functions globally accessible
+    // Theme display name utility (mirrors the server-side function)
+    function getThemeDisplayName(themeName) {
+      // Special cases for proper formatting
+      const specialCases = {
+        'rose-pine': 'Rosé Pine',
+        'macos': 'macOS'
+      };
+
+      // Return special case if it exists
+      if (specialCases[themeName]) {
+        return specialCases[themeName];
+      }
+
+      // General formatting: capitalize first letter and replace hyphens with spaces
+      return themeName
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+
+    window.toggleTheme = toggleTheme;
+    window.changeTheme = changeTheme;
+    window.isThemeSwitchingAvailable = isThemeSwitchingAvailable;
+    window.isThemeAvailable = isThemeAvailable;
+    window.resetThemeToDefault = resetThemeToDefault;
+    window.getThemeWithoutClearing = getThemeWithoutClearing;
+    window.getThemeDisplayName = getThemeDisplayName;
+
+    // Global function to restore scroll functionality
+    function restoreScroll() {
+      document.body.style.overflow = '';
+      document.documentElement.classList.remove('force-scroll-top');
+      // Force a reflow to ensure changes take effect
+      document.body.offsetHeight;
+    }
+
+    // Make restoreScroll globally accessible
+    window.restoreScroll = restoreScroll;
+
+    // Global comments initialization function - Swup compatible
+    function initializeGiscusComments() {
+
+      // Check if comments are enabled in config
+      if (!window.commentsEnabled) {
+        return;
+      }
+
+      // Check if comments container exists
+      const commentsContainer = document.querySelector('#giscus-comments');
+      if (!commentsContainer) {
+        return;
+      }
+
+      // CRITICAL: Clear the entire container content first
+      commentsContainer.innerHTML = '';
+
+      // Remove any existing Giscus scripts from the entire document
+      const existingScripts = document.querySelectorAll('script[src*="giscus.app"]');
+      existingScripts.forEach(script => {
+        script.remove();
+      });
+
+      // Remove any existing Giscus iframes from the entire document
+      const existingIframes = document.querySelectorAll('iframe[src*="giscus"]');
+      existingIframes.forEach(iframe => {
+        iframe.remove();
+      });
+
+
+      // Clear any error state
+      commentsContainer.removeAttribute('data-error');
+
+      // Create a fresh Giscus script
+      const script = document.createElement('script');
+      script.src = 'https://giscus.app/client.js';
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+
+      // Get configuration from data attributes
+      const containerElement = commentsContainer;
+      const repo = containerElement.dataset.repo || '';
+      const repoId = containerElement.dataset.repoId || '';
+      const category = containerElement.dataset.category || '';
+      const categoryId = containerElement.dataset.categoryId || '';
+      const mapping = containerElement.dataset.mapping || 'pathname';
+      const strict = containerElement.dataset.strict || '0';
+      const reactionsEnabled = containerElement.dataset.reactionsEnabled || '1';
+      const metadata = containerElement.dataset.metadata || '0';
+      const inputPosition = containerElement.dataset.inputPosition || 'bottom';
+      const lang = containerElement.dataset.lang || 'en';
+      const loading = containerElement.dataset.loading || 'lazy';
+
+      // Determine the actual theme to use - convert 'preferred_color_scheme' to 'dark' or 'light'
+      let theme = containerElement.dataset.theme || 'preferred_color_scheme';
+      if (theme === 'preferred_color_scheme') {
+        // Get current theme from document
+        const isDark = document.documentElement.classList.contains('dark');
+        theme = isDark ? 'dark' : 'light';
+      }
+
+      script.setAttribute('data-repo', repo);
+      script.setAttribute('data-repo-id', repoId);
+      script.setAttribute('data-category', category);
+      script.setAttribute('data-category-id', categoryId);
+      script.setAttribute('data-mapping', mapping);
+      script.setAttribute('data-strict', strict);
+      script.setAttribute('data-reactions-enabled', reactionsEnabled);
+      script.setAttribute('data-emit-metadata', metadata);
+      script.setAttribute('data-input-position', inputPosition);
+      script.setAttribute('data-theme', theme);
+      script.setAttribute('data-lang', lang);
+      script.setAttribute('data-loading', loading);
+
+      script.onload = function() {
+
+        // Auto-scroll to comments section after GitHub sign-in
+        // This helps users find the comments after authentication
+        setTimeout(() => {
+          const commentsContainer = document.querySelector('#giscus-comments');
+          if (commentsContainer) {
+            // Check if we're returning from GitHub OAuth (common pattern)
+            const urlParams = new URLSearchParams(window.location.search);
+            const isOAuthReturn = urlParams.has('code') || urlParams.has('state') ||
+                                 window.location.hash.includes('giscus') ||
+                                 document.referrer.includes('github.com') ||
+                                 document.referrer.includes('giscus.app');
+
+            if (isOAuthReturn) {
+              commentsContainer.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+              });
+            }
+          }
+        }, 1000); // Delay to allow Giscus to fully load
+
+        // Simple iframe load detection and theme initialization
+        const checkForGiscusIframe = () => {
+          const giscusIframe = document.querySelector('iframe[src*="giscus"]');
+          if (giscusIframe) {
+            giscusIframe.addEventListener('load', () => {
+              // Initialize theme after iframe loads
+              setTimeout(() => {
+                handleGiscusThemeChange();
+              }, 500);
+            });
+          } else {
+            // If iframe not ready yet, check again in a bit
+            setTimeout(checkForGiscusIframe, 500);
+          }
+        };
+
+        checkForGiscusIframe();
+      };
+
+      script.onerror = function() {
+        commentsContainer.setAttribute('data-error', 'true');
+      };
+
+      // Append to the container
+      commentsContainer.appendChild(script);
+    };
+
+    // Make the function globally accessible
+    window.initializeGiscusComments = initializeGiscusComments;
+
+    // Collapsible callouts functionality
+    function initializeCollapsibleCallouts() {
+      const collapsibleCallouts = document.querySelectorAll('.callout-collapsible');
+
+      collapsibleCallouts.forEach(callout => {
+        const toggleButton = callout.querySelector('.callout-toggle');
+        const content = callout.querySelector('.callout-content');
+
+        if (!toggleButton || !content) return;
+
+        // Add click handler to toggle button
+        toggleButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const isCollapsed = callout.classList.contains('callout-collapsed');
+
+          if (isCollapsed) {
+            // Expand
+            callout.classList.remove('callout-collapsed');
+            content.style.display = '';
+            toggleButton.setAttribute('aria-expanded', 'true');
+          } else {
+            // Collapse
+            callout.classList.add('callout-collapsed');
+            content.style.display = 'none';
+            toggleButton.setAttribute('aria-expanded', 'false');
+          }
+        });
+
+        // Add click handler to title for easier interaction
+        const title = callout.querySelector('.callout-title');
+        if (title) {
+          title.addEventListener('click', (e) => {
+            // Only trigger if not clicking the toggle button
+            if (!e.target.closest('.callout-toggle')) {
+              toggleButton.click();
+            }
+          });
+        }
+      });
+    }
+
+    // Initialize collapsible callouts when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeCollapsibleCallouts);
+    } else {
+      initializeCollapsibleCallouts();
+    }
+
+    // Process external links to open in new tabs
+    function processExternalLinks() {
+      // Process external links in captions to open in new tabs
+      const captionLinks = document.querySelectorAll('p em a, .image-caption-container a');
+      captionLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+          link.setAttribute('target', '_blank');
+          link.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+
+      // Process all external links in content to open in new tabs (including reference links)
+      const allLinks = document.querySelectorAll('.prose a[href], article a[href]');
+      allLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+          // Skip if already has target attribute (e.g., manually set)
+          if (!link.hasAttribute('target')) {
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
+          }
+        }
+      });
+    }
+
+    // Make function globally accessible
+    window.processExternalLinks = processExternalLinks;
+
+    // Initialize external links when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', processExternalLinks);
+    } else {
+      processExternalLinks();
+    }
+  </script>
+
+  <!-- View Transitions - temporarily disabled to fix compiler issues -->
+  <!-- <ViewTransitions /> -->
+
+  <!-- Additional head content -->
+  <slot name="head" />
+
+
+  <!-- Twitter Widgets Script -->
+  <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+</head>
+
+<body class={`min-h-screen bg-white dark:bg-primary-950 text-primary-900 dark:text-primary-50 text-selection-highlight transition-colors duration-200 ${scrollbarClass} ${bodyClass}`}>
+  <!-- Skip to main content -->
+  <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 btn-primary px-4 py-2 rounded-md z-50">
+    Skip to main content
+  </a>
+
+  <!-- Header -->
+  <Header />
+
+  <!-- Main content -->
+  <main id="main-content" class="container mx-auto relative" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+    <div id="swup-container" class="transition-swup-fade">
+      <slot />
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <Footer />
+
+  <!-- Command Palette -->
+  {siteConfig.commandPalette.enabled && <CommandPalette />}
+
+  <!-- Theme Selector (for when command palette is disabled but theme button is needed) -->
+  <ThemeSelector />
+
+
+  <!-- Scroll to Top -->
+  {siteConfig.scrollToTop && <ScrollToTop />}
+
+  <!-- Image Gallery Manager -->
+  <ImageGalleryManager />
+
+  <!-- Category Filter -->
+  <CategoryFilter />
+
+
+    <!-- Mermaid diagrams handled by client script -->
+    <script>
+      try { await import('../scripts/base-embeds-client.ts'); } catch (_) {}
+    </script>
+    <script>
+      try { await import('../scripts/mermaid-client.ts'); } catch (_) {}
+    </script>
+
+  <!-- Global scripts - Defer non-critical JavaScript -->
+  <script define:vars={{ commentsEnabled: siteConfig.postOptions.comments.enabled }} defer>
+    
+    // Logger removed - no console output in production
+
+    // Define isDev in client-side JavaScript (always false in production)
+    const isDev = false;
+
+    // Set window.commentsEnabled for client-side access
+    window.commentsEnabled = commentsEnabled;
+
+    // Simple favicon function - follows system theme only
+    function setFavicon() {
+      const faviconThemeAdaptive = window.siteConfig?.faviconThemeAdaptive ?? true;
+      
+      let faviconUrl;
+      
+      if (faviconThemeAdaptive) {
+        // Use theme-based favicons based on browser preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        faviconUrl = prefersDark ? '/favicon-dark.png' : '/favicon-light.png';
+      } else {
+        // Always use static favicon
+        faviconUrl = '/favicon.png';
+      }
+
+      // Remove existing favicon
+      const existingFavicon = document.querySelector('link[rel="icon"]');
+      if (existingFavicon) existingFavicon.remove();
+
+      // Add new favicon
+      const faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      faviconLink.href = faviconUrl;
+      document.head.appendChild(faviconLink);
+    }
+
+    // Set favicon on load
+    setFavicon();
+
+    // Update favicon when system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      const faviconThemeAdaptive = window.siteConfig?.faviconThemeAdaptive ?? true;
+      if (faviconThemeAdaptive) {
+        setFavicon();
+      }
+    });
+
+    // Update navigation highlighting based on current page
+    function updateNavigationHighlighting(targetPath) {
+      const currentPath = targetPath || window.location.pathname;
+
+      // Target both desktop and mobile navigation links
+      const navLinks = document.querySelectorAll('header nav a, #mobile-menu nav a');
+
+      navLinks.forEach((link) => {
+        const linkPath = link.getAttribute('href');
+
+        if (linkPath) {
+          // Remove ALL existing classes that could conflict
+          link.classList.remove('active', 'current', 'bg-highlight-100', 'dark:bg-highlight-900', 'text-highlight-600', 'dark:text-highlight-400', 'bg-highlight-50', 'dark:bg-highlight-900/20', 'text-primary-600', 'dark:text-primary-300', 'text-primary-500', 'dark:text-primary-400');
+
+          // Check if this link matches the current page
+          let isActive = false;
+
+          if (linkPath === currentPath) {
+            // Exact match
+            isActive = true;
+          } else if (linkPath === '/' && currentPath === '/') {
+            // Homepage exact match
+            isActive = true;
+          } else if (linkPath !== '/' && linkPath !== '#' && !linkPath.startsWith('http')) {
+            // For internal links, only match exact paths or paths with trailing slash
+            // This prevents /posts from matching /posts/something
+            const normalizedLinkPath = linkPath.endsWith('/') ? linkPath : linkPath + '/';
+            const normalizedCurrentPath = currentPath.endsWith('/') ? currentPath : currentPath + '/';
+
+            // Only match if it's an exact match (including trailing slash normalization)
+            isActive = normalizedLinkPath === normalizedCurrentPath;
+          }
+
+          if (isActive) {
+            // Add appropriate active classes based on navigation style
+            const isMobile = link.closest('#mobile-menu');
+
+            if (isMobile) {
+              // Mobile navigation active classes
+              link.classList.add('text-highlight-600', 'dark:text-highlight-400', 'bg-highlight-50', 'dark:bg-highlight-900/20');
+            } else {
+              // Desktop navigation active classes
+              link.classList.add('text-highlight-600', 'dark:text-highlight-400');
+            }
+          } else {
+            // Ensure inactive state classes are applied
+            const isMobile = link.closest('#mobile-menu');
+
+            if (isMobile) {
+              // Mobile navigation inactive classes
+              link.classList.add('text-primary-600', 'dark:text-primary-300');
+            } else {
+              // Desktop navigation inactive classes - check if it's minimal style
+              const nav = link.closest('nav');
+              const isMinimal = nav && Array.from(nav.classList).some(cls => cls.includes('space-x-4'));
+
+              if (isMinimal) {
+                link.classList.add('text-primary-500', 'dark:text-primary-400');
+              } else {
+                link.classList.add('text-primary-600', 'dark:text-primary-300');
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Make function globally accessible
+    window.updateNavigationHighlighting = updateNavigationHighlighting;
+
+    // Test the function immediately
+    updateNavigationHighlighting();
+
+    // Initialize comments and table wrappers on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      if (isDev) {
+      }
+      if (document.querySelector('#giscus-comments')) {
+        if (isDev) {
+        }
+        window.initializeGiscusComments();
+      }
+      // Initialize base embeds on initial page load (before table wrappers)
+      if (window.initializeBaseEmbeds) {
+        window.initializeBaseEmbeds();
+      }
+      // Initialize table wrappers on initial page load
+      window.initializeTableWrappers();
+
+      // Initialize GraphModal on initial page load
+      if (window.initializeGraphModal) {
+        window.initializeGraphModal();
+      }
+
+      // Initialize linked mentions on initial page load
+      if (window.initializeLinkedMentions) {
+        window.initializeLinkedMentions();
+      }
+
+      // Setup smooth scrolling for anchor links
+      setupSmoothScrolling();
+
+      // Handle initial hash scroll (if URL has hash)
+      handleInitialHashScroll();
+    });
+
+    // Command Palette Keyboard Shortcut Handler
+    function setupCommandPaletteShortcut() {
+      // Get the shortcut from the meta tag
+      const shortcutMeta = document.querySelector('meta[name="command-palette-shortcut"]');
+      if (!shortcutMeta) return;
+
+      const shortcut = shortcutMeta.getAttribute('content');
+      if (!shortcut || shortcut.trim() === '') return;
+
+      // Parse the shortcut (e.g., "ctrl+e" -> {ctrl/meta primary, key: "e"})
+      const parts = shortcut.toLowerCase().split('+').map(p => p.trim());
+      const modifiers = {
+        ctrl: parts.includes('ctrl') || parts.includes('control'),
+        alt: parts.includes('alt'),
+        shift: parts.includes('shift'),
+        meta: parts.includes('meta') || parts.includes('cmd') || parts.includes('command')
+      };
+      const isMac = typeof navigator !== 'undefined' && (/mac/i.test(navigator.platform) || /mac os x/i.test(navigator.userAgent));
+      // Treat ctrl on Windows/Linux and cmd (meta) on macOS as the same "primary" modifier
+      const requiresPrimary = modifiers.ctrl || modifiers.meta;
+
+      // Get the main key (last part)
+      const key = parts[parts.length - 1];
+      if (!key) return;
+
+      // Add global keyboard listener
+      document.addEventListener('keydown', (e) => {
+        // Check modifiers with cross-platform primary mapping (Ctrl on Win/Linux, Cmd on macOS)
+        const primaryPressed = isMac ? e.metaKey : e.ctrlKey;
+        const primaryMatch = requiresPrimary ? primaryPressed : (!e.ctrlKey && !e.metaKey);
+        const modifiersMatch = primaryMatch &&
+                              (modifiers.alt === e.altKey) &&
+                              (modifiers.shift === e.shiftKey);
+
+        // Check if the key matches (case insensitive)
+        const keyMatch = e.key.toLowerCase() === key.toLowerCase();
+
+        // Only trigger if we're not in an input field, textarea, or contenteditable
+        const isInputField = e.target.tagName === 'INPUT' ||
+                            e.target.tagName === 'TEXTAREA' ||
+                            e.target.contentEditable === 'true' ||
+                            e.target.isContentEditable;
+
+        if (modifiersMatch && keyMatch && !isInputField) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Dispatch the openCommandPalette event
+          const event = new CustomEvent('openCommandPalette');
+          window.dispatchEvent(event);
+        }
+      });
+    }
+
+    // Setup command palette shortcut when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupCommandPaletteShortcut);
+    } else {
+      setupCommandPaletteShortcut();
+    }
+
+    // CRITICAL: Listen for Swup page transitions using hooks API
+    // Wait for Swup to be available
+    let swupRetryCount = 0;
+    const maxSwupRetries = 50; // Max 5 seconds of retries
+
+    function setupSwupHooks() {
+      if (window.swup) {
+        if (isDev) {
+        }
+
+        // Use the correct Swup hooks API
+        window.swup.hooks.on('content:replace', () => {
+          if (isDev) {
+          }
+          // Re-initialize theme properly respecting theme switching availability
+          const theme = getThemeWithoutClearing();
+          document.documentElement.setAttribute('data-theme', theme);
+          updateThemeCSSVariables(theme).catch(console.error);
+          // Close any open lightbox before content replacement
+          if (window.lightboxInstance && window.lightboxInstance.isOpen) {
+            window.lightboxInstance.closeLightbox();
+          }
+          // Reinitialize favicon after page transition
+          setFavicon();
+          // Initialize after content replacement
+          setTimeout(() => {
+            if (document.querySelector('#giscus-comments')) {
+              window.initializeGiscusComments();
+            }
+            // Initialize base embeds first, then wrap tables
+            if (window.initializeBaseEmbeds) {
+              window.initializeBaseEmbeds();
+            }
+            window.initializeTableWrappers();
+            // Initialize linked mentions
+            if (window.initializeLinkedMentions) {
+              window.initializeLinkedMentions();
+            }
+            // Initialize wikilinks
+            if (window.initializeWikilinks) {
+              window.initializeWikilinks();
+            }
+            // Initialize image galleries
+            if (typeof window['initializeImageGalleries'] === 'function') {
+              window['initializeImageGalleries']();
+            }
+            // Initialize category filtering
+            if (typeof window['initializeCategoryFiltering'] === 'function') {
+              window['initializeCategoryFiltering']();
+            }
+            // Process external links to open in new tabs
+            if (window.processExternalLinks) {
+              window.processExternalLinks();
+            }
+            // Re-setup smooth scrolling for anchor links
+            setupSmoothScrolling();
+          }, 100);
+        });
+
+        window.swup.hooks.on('page:view', () => {
+          if (isDev) {
+          }
+          // Re-initialize theme properly respecting theme switching availability
+          const theme = getThemeWithoutClearing();
+          document.documentElement.setAttribute('data-theme', theme);
+          updateThemeCSSVariables(theme).catch(console.error);
+          setTimeout(() => {
+            if (document.querySelector('#giscus-comments')) {
+              window.initializeGiscusComments();
+            }
+            // Initialize with small delay to ensure DOM is ready
+            setTimeout(() => {
+              // Initialize base embeds first, then wrap tables
+              if (window.initializeBaseEmbeds) {
+                window.initializeBaseEmbeds();
+              }
+              window.initializeTableWrappers();
+            }, 50);
+            // Re-initialize GraphModal after page transition
+            if (window.initializeGraphModal) {
+              window.initializeGraphModal();
+            }
+            // Initialize linked mentions
+            if (window.initializeLinkedMentions) {
+              window.initializeLinkedMentions();
+            }
+            // Initialize wikilinks
+            if (window.initializeWikilinks) {
+              window.initializeWikilinks();
+            }
+            // Initialize category filtering
+            if (typeof window['initializeCategoryFiltering'] === 'function') {
+              window['initializeCategoryFiltering']();
+            }
+            // Initialize table of contents
+            if (window.initializeTableOfContents) {
+              window.initializeTableOfContents();
+            }
+            // Reset and initialize local graph
+            if (window.resetGraph) {
+              window.resetGraph();
+            }
+            if (window.initializeGraph) {
+              window.initializeGraph();
+            }
+            if (window.setupGraphButtons) {
+              window.setupGraphButtons();
+            }
+            // Process external links to open in new tabs
+            if (window.processExternalLinks) {
+              window.processExternalLinks();
+            }
+            // Re-setup smooth scrolling for anchor links
+            setupSmoothScrolling();
+          }, 100);
+        });
+
+        // Favicon is handled by CSS media queries - no JavaScript needed
+      } else if (swupRetryCount < maxSwupRetries) {
+        swupRetryCount++;
+        if (isDev) {
+        }
+        setTimeout(setupSwupHooks, 100);
+      } else {
+        if (isDev) {
+        }
+      }
+    }
+
+    // Start setting up Swup hooks
+    setupSwupHooks();
+
+    // Favicon is now handled by CSS media queries - no JavaScript needed
+
+    // FALLBACK: Use MutationObserver to detect when comments container appears
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node;
+              // Check if the added node or its children contain the comments container
+              if (element.id === 'giscus-comments' || element.querySelector('#giscus-comments')) {
+                if (isDev) {
+                }
+                setTimeout(() => {
+                  window.initializeGiscusComments();
+                }, 200);
+              }
+            }
+          });
+        }
+      });
+    });
+
+    // Start observing the swup container for changes
+    const swupContainer = document.querySelector('#swup-container');
+    if (swupContainer) {
+      observer.observe(swupContainer, {
+        childList: true,
+        subtree: true
+      });
+      if (isDev) {
+      }
+    }
+
+    // AGGRESSIVE FALLBACK: Check for comments on every navigation click
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!target) return;
+
+      // Check if it's a navigation link
+      const href = target.getAttribute('href');
+      if (target.tagName === 'A' && href && !href.startsWith('#')) {
+        if (isDev) {
+        }
+        // Delay to allow Swup to process the navigation
+        setTimeout(() => {
+          if (document.querySelector('#giscus-comments')) {
+            if (isDev) {
+            }
+            window.initializeGiscusComments();
+          }
+        }, 500);
+      }
+    });
+
+    // Global image preloader to prevent reloading across navigation
+    class ImagePreloader {
+      constructor() {
+        this.loadedImages = new Set();
+        this.preloadedImages = new Map();
+      }
+
+      preloadImage(src, priority = 'low') {
+        return new Promise((resolve, reject) => {
+          if (this.loadedImages.has(src)) {
+            resolve(undefined);
+            return;
+          }
+
+          if (this.preloadedImages.has(src)) {
+            resolve(undefined);
+            return;
+          }
+
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.loading = priority === 'high' ? 'eager' : 'lazy';
+
+          img.onload = () => {
+            this.loadedImages.add(src);
+            this.preloadedImages.set(src, img);
+            resolve(undefined);
+          };
+
+          img.onerror = () => {
+            reject(new Error(`Failed to load image: ${src}`));
+          };
+
+          img.src = src;
+        });
+      }
+
+      preloadAllImages() {
+        const images = document.querySelectorAll('img[src*="/_image"]');
+        images.forEach((img, index) => {
+          if (img instanceof HTMLImageElement) {
+            const priority = index < 3 ? 'high' : 'low';
+            this.preloadImage(img.src, priority).catch((error) => {
+            });
+          }
+        });
+      }
+    }
+
+    // Initialize global preloader
+    window.imagePreloader = new ImagePreloader();
+
+    // Handle smooth scrolling for anchor links (same-page only)
+    function setupSmoothScrolling() {
+      // Remove any existing event listeners to avoid duplicates
+      // Select all anchor links (starting with #) but exclude root anchor (# only)
+      const existingLinks = document.querySelectorAll('a[href^="#"]');
+      existingLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        // Only process links that have a hash with content (not just #)
+        if (href && href.length > 1) {
+          link.removeEventListener('click', handleAnchorClick);
+        }
+      });
+
+      // Only handle anchor links that have content after #
+      const anchorLinks = document.querySelectorAll('a[href^="#"]');
+
+      anchorLinks.forEach(link => {
+        const href = link.getAttribute('href');
+        // Only attach handler to links with actual anchor (not just #)
+        if (href && href.length > 1) {
+          link.addEventListener('click', handleAnchorClick);
+        }
+      });
+
+      // Also handle same-page links with paths (e.g., /posts/getting-started#heading)
+      // These aren't handled by Swup (same-page), so browser jumps - we smooth scroll instead
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+      const allLinks = document.querySelectorAll('a[href]');
+      
+      allLinks.forEach(link => {
+        const hrefAttr = link.getAttribute('href');
+        if (!hrefAttr) return;
+        
+        // Skip links already handled above (starting with #)
+        if (hrefAttr.startsWith('#')) return;
+        
+        // Skip external links
+        if (hrefAttr.startsWith('http') || hrefAttr.startsWith('mailto:') || hrefAttr.startsWith('tel:')) return;
+        
+        const hashIndex = hrefAttr.indexOf('#');
+        if (hashIndex === -1) return; // No hash
+
+        // Use resolved href (after markdown processing) for path comparison
+        const href = link.href;
+        if (!href) return;
+
+        // Parse the link URL
+        let linkUrl;
+        try {
+          linkUrl = new URL(href);
+        } catch {
+          return;
+        }
+
+        // Only handle same origin
+        if (linkUrl.origin !== window.location.origin) return;
+
+        // Normalize paths - remove trailing slashes and .md extensions for comparison
+        const linkPath = linkUrl.pathname.replace(/\/$/, '').replace(/\.md$/, '') || '/';
+        const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+        
+        // Only attach handler if same page
+        if (linkPath === currentPath) {
+          link.removeEventListener('click', handleSamePagePathAnchorClick);
+          link.addEventListener('click', handleSamePagePathAnchorClick, true); // Capture phase - run before Swup
+        }
+      });
+    }
+
+    // Handler for same-page path anchors - uses same smooth scroll as handleAnchorClick
+    function handleSamePagePathAnchorClick(e) {
+      const target = e.target;
+      const link = target.closest('a[href]');
+      if (!link) return;
+
+      // Use resolved href (after markdown processing) instead of raw attribute
+      const href = link.href;
+      if (!href) return;
+
+      // Parse the link URL
+      let linkUrl;
+      try {
+        linkUrl = new URL(href);
+      } catch {
+        return;
+      }
+
+      // Only handle same origin
+      if (linkUrl.origin !== window.location.origin) return;
+
+      const linkPath = linkUrl.pathname.replace(/\/$/, '').replace(/\.md$/, '') || '/';
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+      const hash = linkUrl.hash;
+
+      // Only handle if same page AND has hash
+      if (linkPath === currentPath && hash && hash.length > 1) {
+        e.preventDefault();
+        e.stopPropagation(); // Stop Swup from intercepting
+        e.stopImmediatePropagation(); // Stop all other handlers
+
+        const targetElement = document.querySelector(hash);
+        
+        if (targetElement) {
+          // Update URL without triggering Swup
+          const currentUrl = window.location.pathname + window.location.search;
+          window.history.pushState(null, '', currentUrl + hash);
+
+          // Same smooth scroll as handleAnchorClick
+          const targetPosition = targetElement.offsetTop - 100;
+          const startPosition = window.pageYOffset;
+          const distance = targetPosition - startPosition;
+          const duration = 800;
+          let start = null;
+
+          function step(timestamp) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const percentage = Math.min(progress / duration, 1);
+
+            const easeInOut = percentage < 0.5
+              ? 2 * percentage * percentage
+              : 1 - Math.pow(-2 * percentage + 2, 2) / 2;
+
+            window.scrollTo(0, startPosition + distance * easeInOut);
+
+            if (progress < duration) {
+              requestAnimationFrame(step);
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+      }
+    }
+
+    // Handle anchor link clicks with smooth scrolling
+    function handleAnchorClick(e) {
+      const target = e.target;
+      const link = target.closest('a[href]');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#') && href.length > 1) {
+        const targetElement = document.querySelector(href);
+        if (targetElement) {
+          e.preventDefault();
+
+          // DON'T update URL - let the browser handle it naturally
+          // This prevents interfering with browser history
+
+          // Custom smooth scroll animation
+          const targetPosition = targetElement.offsetTop - 100; // Account for header
+          const startPosition = window.pageYOffset;
+          const distance = targetPosition - startPosition;
+          const duration = 800; // 800ms duration
+          let start = null;
+
+          function step(timestamp) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const percentage = Math.min(progress / duration, 1);
+
+            // Easing function (ease-in-out)
+            const easeInOut = percentage < 0.5
+              ? 2 * percentage * percentage
+              : 1 - Math.pow(-2 * percentage + 2, 2) / 2;
+
+            window.scrollTo(0, startPosition + distance * easeInOut);
+
+            if (progress < duration) {
+              requestAnimationFrame(step);
+            }
+          }
+
+          requestAnimationFrame(step);
+        }
+      }
+    }
+
+    // Handle URL hash scrolling on page load (start at top, then smooth scroll)
+    function handleInitialHashScroll() {
+      const hash = window.location.hash;
+      if (hash && hash.length > 1) {
+        // First, scroll to top instantly
+        window.scrollTo(0, 0);
+
+        // Then wait a bit and smooth scroll to target
+        setTimeout(() => {
+          const targetElement = document.querySelector(hash);
+          if (targetElement) {
+            // Custom smooth scroll animation
+            const targetPosition = targetElement.offsetTop - 100; // Account for header
+            const startPosition = window.pageYOffset;
+            const distance = targetPosition - startPosition;
+            const duration = 800; // 800ms duration
+            let start = null;
+
+            function step(timestamp) {
+              if (!start) start = timestamp;
+              const progress = timestamp - start;
+              const percentage = Math.min(progress / duration, 1);
+
+              // Easing function (ease-in-out)
+              const easeInOut = percentage < 0.5
+                ? 2 * percentage * percentage
+                : 1 - Math.pow(-2 * percentage + 2, 2) / 2;
+
+              window.scrollTo(0, startPosition + distance * easeInOut);
+
+              if (progress < duration) {
+                requestAnimationFrame(step);
+              }
+            }
+
+            requestAnimationFrame(step);
+          }
+        }, 100);
+      }
+    }
+
+
+    // Handle browser back/forward button - restore scroll position naturally
+    function handlePopState() {
+      // Small delay to ensure content is loaded
+      setTimeout(() => {
+        // Let the browser handle scroll position restoration naturally
+        // Don't force scroll to top - this preserves user's previous scroll position
+
+        // Reinitialize components after back/forward navigation
+        if (window.initializeImageGrids) {
+          window.initializeImageGrids();
+        }
+        if (window.initializeTableWrappers) {
+          window.initializeTableWrappers();
+        }
+        // Don't call setupSmoothScrolling() here - let browser handle scroll naturally
+      }, 50);
+    }
+
+    // Listen for browser back/forward button
+    window.addEventListener('popstate', handlePopState);
+
+    // Twitter widget initialization
+    function initializeTwitterWidgets() {
+      if (typeof window.twttr !== 'undefined' && window.twttr.widgets) {
+        // Load Twitter widgets for all tweets on page
+        window.twttr.widgets.load();
+      } else {
+        // If Twitter script hasn't loaded yet, wait for it
+        setTimeout(initializeTwitterWidgets, 500);
+      }
+    }
+
+    // Make Twitter widget function globally available
+    if (typeof window !== 'undefined') {
+      window.initializeTwitterWidgets = initializeTwitterWidgets;
+    }
+
+
+    // Initialize Twitter theme immediately on page load (before widgets render)
+    function initializeTwitterThemeImmediately() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const newTheme = isDark ? 'dark' : 'light';
+      
+      // Update the meta tag immediately
+      const themeMeta = document.querySelector('meta[name="twitter:widgets:theme"]');
+      if (themeMeta) {
+        themeMeta.setAttribute('content', newTheme);
+      }
+      
+      // Update data-theme attributes on any existing blockquotes
+      const twitterEmbeds = document.querySelectorAll('.twitter-tweet');
+      twitterEmbeds.forEach(embed => {
+        embed.setAttribute('data-theme', newTheme);
+      });
+    }
+
+    // Initialize Twitter theme immediately (before widgets load)
+    initializeTwitterThemeImmediately();
+
+    // Initialize Twitter widgets when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initializeTwitterWidgets();
+        // Also initialize theme again after widgets load (as backup)
+        setTimeout(initializeTwitterTheme, 1000);
+        // Initialize Giscus theme after widgets load
+        setTimeout(initializeGiscusTheme, 1500);
+      });
+    } else {
+      initializeTwitterWidgets();
+      // Also initialize theme again after widgets load (as backup)
+      setTimeout(initializeTwitterTheme, 1000);
+      // Initialize Giscus theme after widgets load
+      setTimeout(initializeGiscusTheme, 1500);
+    }
+
+    // Mermaid theme change handling
+    function handleMermaidThemeChange() {
+      // Use the utility's theme change handler
+      if (typeof window.handleMermaidThemeChange === 'function') {
+        window.handleMermaidThemeChange();
+      }
+    }
+
+
+    // Giscus theme change handling - use postMessage API for dynamic theme switching
+    function handleGiscusThemeChange(isDarkParam) {
+      // Only change theme if comments are enabled and Giscus iframe exists
+      if (window.commentsEnabled) {
+        const giscusIframe = document.querySelector('iframe.giscus-frame');
+        if (giscusIframe) {
+          // Get current theme from document or use provided parameter
+          const isDark = isDarkParam !== undefined 
+            ? isDarkParam 
+            : document.documentElement.classList.contains('dark');
+          const newTheme = isDark ? 'dark' : 'light';
+
+          // Send message to Giscus iframe to change theme
+          giscusIframe.contentWindow.postMessage(
+            { giscus: { setConfig: { theme: newTheme } } },
+            'https://giscus.app'
+          );
+        }
+      }
+    }
+
+    // Initialize Twitter theme on page load
+    function initializeTwitterTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      handleTwitterThemeChange(isDark);
+    }
+
+    // Initialize Giscus theme on page load
+    function initializeGiscusTheme() {
+      // Wait for Giscus iframe to load, then set initial theme
+      const checkForGiscusIframe = () => {
+        const giscusIframe = document.querySelector('iframe.giscus-frame');
+        if (giscusIframe) {
+          // Small delay to ensure iframe is fully loaded
+          setTimeout(() => {
+            handleGiscusThemeChange();
+          }, 500);
+        } else {
+          // If iframe not ready yet, check again in a bit
+          setTimeout(checkForGiscusIframe, 500);
+        }
+      };
+
+      // Only check if comments are enabled
+      if (window.commentsEnabled) {
+        checkForGiscusIframe();
+      }
+    }
+
+    // Listen for theme changes
+    if (typeof window !== 'undefined') {
+      // Watch for class changes on documentElement (theme toggle)
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            const isDark = document.documentElement.classList.contains('dark');
+            const wasDark = mutation.oldValue && mutation.oldValue.includes('dark');
+
+            // Only re-render if theme actually changed
+            if (isDark !== wasDark) {
+              handleMermaidThemeChange();
+              handleTwitterThemeChange(isDark);
+              handleGiscusThemeChange(isDark);
+            }
+          }
+        });
+      });
+
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeOldValue: true,
+        attributeFilter: ['class']
+      });
+
+      // Also listen for themechange events (for dark/light mode toggles)
+      window.addEventListener('themechange', (event) => {
+        // Check if this is a dark/light mode change (has mode property)
+        if (event.detail && event.detail.mode) {
+          const isDark = event.detail.mode === 'dark';
+          handleGiscusThemeChange(isDark);
+        } else {
+          // Otherwise, check current state
+          const isDark = document.documentElement.classList.contains('dark');
+          handleGiscusThemeChange(isDark);
+        }
+      });
+    }
+
+    // Simple scroll behavior: let browser handle everything naturally
+    function setupSwupScrollBehavior() {
+      if (typeof window !== 'undefined' && window.swup) {
+        const swup = window.swup;
+
+        // Completely disable all scroll behavior - let browser handle it naturally
+        swup.hooks.on('page:view', () => {
+          // Do nothing - let browser handle scroll position naturally
+          // Still update navigation highlighting and linked mentions
+          updateNavigationHighlighting();
+          if (window.initializeLinkedMentions) {
+            window.initializeLinkedMentions();
+          }
+          // Re-initialize LocalGraph after page transition
+          if (window.resetLocalGraph) {
+            window.resetLocalGraph();
+          }
+          if (window.initializeLocalGraph) {
+            window.initializeLocalGraph();
+          }
+          // Initialize doc category filtering after page transition
+          if (window.initializeDocCategoryFiltering) {
+            window.initializeDocCategoryFiltering();
+          }
+          // Initialize project category filtering after page transition
+          if (window.initializeProjectCategoryFiltering) {
+            window.initializeProjectCategoryFiltering();
+          }
+          // Initialize collapsible categories after page transition (for docs index page)
+          if (window.initializeCollapsibleCategories) {
+            setTimeout(() => window.initializeCollapsibleCategories(), 100);
+          }
+          if (window.setupLocalGraphButtons) {
+            window.setupLocalGraphButtons();
+          }
+        });
+
+        swup.hooks.on('visit:end', () => {
+          // Update navigation highlighting after page transition is complete
+          updateNavigationHighlighting();
+          // Initialize linked mentions after page transition is complete
+          if (window.initializeLinkedMentions) {
+            window.initializeLinkedMentions();
+          }
+          // Initialize base embeds after page transition is complete
+          if (window.initializeBaseEmbeds) {
+            window.initializeBaseEmbeds();
+          }
+          // Then wrap tables
+          window.initializeTableWrappers();
+          // Initialize Mermaid diagrams after page transition is complete
+          if (typeof window.initializeMermaid === 'function') {
+            window.initializeMermaid();
+          }
+          // Re-initialize GraphModal after page transition is complete
+          if (window.initializeGraphModal) {
+            window.initializeGraphModal();
+          }
+          // Re-initialize LocalGraph after page transition is complete
+          if (window.initializeLocalGraph) {
+            window.initializeLocalGraph();
+          }
+          if (window.setupLocalGraphButtons) {
+            window.setupLocalGraphButtons();
+          }
+          // Initialize table of contents after page transition is complete
+          if (window.initializeTableOfContents) {
+            window.initializeTableOfContents();
+          }
+          // Update TOC height after LocalGraph renders (for PostLayout)
+          if (window.updateTOCHeight) {
+            setTimeout(() => {
+              window.updateTOCHeight();
+            }, 200);
+          }
+          // Initialize doc category filtering after page transition is complete
+          if (window.initializeDocCategoryFiltering) {
+            window.initializeDocCategoryFiltering();
+          }
+          // Initialize project category filtering after page transition is complete
+          if (window.initializeProjectCategoryFiltering) {
+            window.initializeProjectCategoryFiltering();
+          }
+          // Initialize Twitter widgets after page transition is complete
+          if (window.initializeTwitterWidgets) {
+            window.initializeTwitterWidgets();
+          }
+          // Initialize collapsible categories after page transition (for docs index page)
+          if (window.initializeCollapsibleCategories) {
+            setTimeout(() => window.initializeCollapsibleCategories(), 100);
+          }
+          if (window.initializeCategoryScroll) {
+            window.initializeCategoryScroll();
+          }
+          if (window.initializeDocsSidebar) {
+            window.initializeDocsSidebar();
+          }
+          if (window.initializeTagsSidebar) {
+            window.initializeTagsSidebar();
+          }
+          if (window.initializeCategoriesSidebar) {
+            window.initializeCategoriesSidebar();
+          }
+          // Graph initialization is handled in page:view hook to prevent duplicates
+          // Don't call handleInitialHashScroll() here - it interferes with back/forward navigation
+        });
+
+      }
+    }
+
+
+    if (typeof window !== 'undefined') {
+      // Setup smooth scrolling when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          setupSmoothScrolling();
+          // Initialize Twitter widgets on initial page load
+          initializeTwitterWidgets();
+        });
+      } else {
+        setupSmoothScrolling();
+        // Initialize Twitter widgets on initial page load
+        initializeTwitterWidgets();
+      }
+    }
+
+    // Mermaid diagrams are initialized by the utility automatically
+
+    // Setup Swup behavior when available
+    if (typeof window !== 'undefined') {
+      if (window.swup) {
+        setupSwupScrollBehavior();
+      } else {
+        // Wait for Swup to be available
+        document.addEventListener('swup:enable', setupSwupScrollBehavior);
+      }
+    }
+
+    // Listen for theme changes using MutationObserver (elegant approach from master)
+    if (typeof window !== 'undefined') {
+      // Watch for class changes on documentElement (theme toggle)
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+            const isDark = document.documentElement.classList.contains('dark');
+            const wasDark = mutation.oldValue && mutation.oldValue.includes('dark');
+            
+            // Only re-render if theme actually changed
+            if (isDark !== wasDark) {
+              handleMermaidThemeChange();
+              handleTwitterThemeChange(isDark);
+              handleGiscusThemeChange(isDark);
+            }
+          }
+        });
+      });
+      
+      observer.observe(document.documentElement, {
+        attributes: true,
+        attributeOldValue: true,
+        attributeFilter: ['class']
+      });
+    }
+
+    function initializeTableWrappers() {
+      // Try multiple selectors to catch all tables
+      const proseTables = document.querySelectorAll('.prose table');
+      const allTables = document.querySelectorAll('table');
+      const tables = proseTables.length > 0 ? proseTables : allTables;
+
+      tables.forEach((table, index) => {
+        // Skip tables already inside a base embed container (client adds wrapper)
+        if (table.closest && table.closest('.base-embed')) {
+          return;
+        }
+        if (!table.parentElement?.classList.contains('table-wrapper')) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'table-wrapper';
+          // Let CSS handle the styling instead of inline styles
+
+          table.parentNode?.insertBefore(wrapper, table);
+          wrapper.appendChild(table);
+
+          // Reset table margin since wrapper handles it
+          table.style.margin = '0';
+        }
+      });
+    }
+
+    // Expose for Swup hooks
+    window.initializeTableWrappers = initializeTableWrappers;
+  </script>
+
+
+
+  <!-- Lightbox for images (global) -->
+  <Lightbox />
+
+  <!-- Graph Modal (global) -->
+  <GraphModal />
+
+  <!-- Additional body scripts -->
+  <slot name="scripts" />
+</body>
+</html>

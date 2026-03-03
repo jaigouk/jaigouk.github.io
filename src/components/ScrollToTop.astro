@@ -1,0 +1,78 @@
+
+---
+import Icon from './Icon.astro';
+// Scroll to top button component
+---
+
+<button
+  id="scroll-to-top"
+  class="fixed bottom-20 right-6 z-50 hidden p-3 bg-primary-800/90 dark:bg-primary-100/90 text-primary-50 dark:text-primary-900 rounded-full shadow-lg hover:shadow-xl hover:bg-highlight-600 dark:hover:bg-highlight-400 hover:text-white dark:hover:text-white transition-all duration-300 backdrop-blur-sm"
+  aria-label="Scroll to top"
+>
+  <Icon name="arrow-up" class="w-5 h-5" />
+</button>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const scrollToTopButton = document.getElementById('scroll-to-top');
+    
+    if (!scrollToTopButton) return;
+    
+    // Show/hide button based on scroll position
+    function toggleScrollButton() {
+      if (!scrollToTopButton) return;
+      
+      const scrolled = window.scrollY > 300;
+      
+      if (scrolled) {
+        scrollToTopButton!.classList.remove('hidden');
+        scrollToTopButton!.classList.add('animate-fade-in');
+      } else {
+        scrollToTopButton!.classList.add('hidden');
+        scrollToTopButton!.classList.remove('animate-fade-in');
+      }
+    }
+    
+    // Smooth scroll to top
+    function scrollToTop() {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+    
+    // Event listeners
+    scrollToTopButton.addEventListener('click', scrollToTop);
+    
+    // Throttled scroll listener
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          toggleScrollButton();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+    
+    // Initial check
+    toggleScrollButton();
+  });
+</script>
+
+<style>
+  @media (max-width: 640px) {
+    #scroll-to-top {
+      bottom: 5rem; /* Increased to avoid footer overlap */
+      right: 1rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    #scroll-to-top {
+      bottom: 4.5rem; /* Slightly higher on very small screens */
+      right: 0.75rem;
+    }
+  }
+</style>

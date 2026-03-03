@@ -1,0 +1,154 @@
+---
+import { siteConfig } from '@/config';
+import Icon from './Icon.astro';
+
+const currentYear = new Date().getFullYear();
+const socialLinks = (siteConfig.navigation.social || []).filter((social) => social && social.url && social.icon);
+const showSocialIcons = siteConfig.footer.showSocialIconsInFooter && socialLinks.length > 0;
+const showProfilePicture = siteConfig.profilePicture.enabled && siteConfig.profilePicture.placement === 'footer';
+const profilePicture = siteConfig.profilePicture;
+const footerEnabled = siteConfig.footer.enabled;
+
+// Replace placeholder with actual author name
+const footerContent = siteConfig.footer.content.replace('{author}', siteConfig.author);
+
+// Size and style classes for profile picture
+const getProfilePictureClasses = (size: string, style: string) => {
+  let sizeClasses = '';
+  switch (size) {
+    case 'sm': sizeClasses = 'h-8'; break;
+    case 'lg': sizeClasses = 'h-16'; break;
+    default: sizeClasses = 'h-12'; // md
+  }
+  
+  let styleClasses = '';
+  switch (style) {
+    case 'circle': styleClasses = 'rounded-full object-cover border-2 border-primary-200 dark:border-primary-700'; break;
+    case 'square': styleClasses = 'rounded-lg object-cover border-2 border-primary-200 dark:border-primary-700'; break;
+    default: styleClasses = 'object-contain'; // none
+  }
+  
+  return `${sizeClasses} ${styleClasses}`;
+};
+---
+
+<footer class="bg-white dark:bg-primary-950 mt-auto">
+  <div class="mx-auto px-4 sm:px-6 lg:px-8 py-8" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+    <!-- Profile picture above footer content when footer is enabled -->
+    {showProfilePicture && footerEnabled && (
+      <div class="mb-4 flex justify-start">
+        {profilePicture.url ? (
+          <a 
+            href={profilePicture.url}
+            class="inline-block hover:opacity-80 transition-opacity"
+            target={profilePicture.url.startsWith('http') ? '_blank' : undefined}
+            rel={profilePicture.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+          >
+            <img
+              src={profilePicture.image}
+              alt={profilePicture.alt}
+              class={getProfilePictureClasses(profilePicture.size, profilePicture.style)}
+            />
+          </a>
+        ) : (
+          <img
+            src={profilePicture.image}
+            alt={profilePicture.alt}
+            class={getProfilePictureClasses(profilePicture.size, profilePicture.style)}
+          />
+        )}
+      </div>
+    )}
+
+    <!-- Mobile: Social icons above footer content, centered -->
+    {showSocialIcons && (
+      <div class="flex justify-center md:hidden mb-4">
+        <div class="flex items-center space-x-4">
+          {socialLinks.map((social) => (
+            <a
+              href={social.url}
+              title={social.title}
+              class="text-primary-500 hover:text-highlight-600 dark:text-primary-400 dark:hover:text-highlight-400 transition-colors duration-200"
+              target="_blank"
+            >
+              <Icon name={social.icon} class="w-5 h-5" />
+              <span class="sr-only">{social.title}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    <!-- Footer content and social icons on same line -->
+    {footerEnabled && (
+      <div class={`text-center ${showSocialIcons ? 'md:flex md:justify-between md:items-center' : ''}`}>
+        <p class="text-xs text-primary-500 dark:text-primary-400" set:html={footerContent}>
+        </p>
+        
+        <!-- Desktop: Social icons on same line as footer content -->
+        {showSocialIcons && (
+          <div class="hidden md:flex items-center space-x-4">
+            {socialLinks.map((social) => (
+              <a
+                href={social.url}
+                title={social.title}
+                class="text-primary-500 hover:text-highlight-600 dark:text-primary-400 dark:hover:text-highlight-400 transition-colors duration-200"
+                target="_blank"
+              >
+                <Icon name={social.icon} class="w-5 h-5" />
+                <span class="sr-only">{social.title}</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    <!-- When footer is disabled: Profile picture aligned with social icons OR just centered social icons -->
+    {!footerEnabled && (
+      <div class={`text-center ${showProfilePicture && showSocialIcons ? 'md:flex md:justify-between md:items-center' : ''}`}>
+        {showProfilePicture ? (
+          <div class="flex justify-start">
+            {profilePicture.url ? (
+              <a 
+                href={profilePicture.url}
+                class="inline-block hover:opacity-80 transition-opacity"
+                target={profilePicture.url.startsWith('http') ? '_blank' : undefined}
+                rel={profilePicture.url.startsWith('http') ? 'noopener noreferrer' : undefined}
+              >
+                <img
+                  src={profilePicture.image}
+                  alt={profilePicture.alt}
+                  class={getProfilePictureClasses(profilePicture.size, profilePicture.style)}
+                />
+              </a>
+            ) : (
+              <img
+                src={profilePicture.image}
+                alt={profilePicture.alt}
+                class={getProfilePictureClasses(profilePicture.size, profilePicture.style)}
+              />
+            )}
+          </div>
+        ) : null}
+        
+        <!-- Social icons: centered when no profile picture, or aligned when profile picture exists -->
+        {showSocialIcons && (
+          <div class={`flex items-center space-x-4 ${showProfilePicture ? 'hidden md:flex' : 'justify-center'}`}>
+            {socialLinks.map((social) => (
+              <a
+                href={social.url}
+                title={social.title}
+                class="text-primary-500 hover:text-highlight-600 dark:text-primary-400 dark:hover:text-highlight-400 transition-colors duration-200"
+                target="_blank"
+              >
+                <Icon name={social.icon} class="w-5 h-5" />
+                <span class="sr-only">{social.title}</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</footer>

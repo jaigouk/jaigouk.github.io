@@ -1,0 +1,315 @@
+---
+import { getCollection } from 'astro:content';
+import { siteConfig } from '@/config';
+import { generatePageSEO } from '@/utils/seo';
+import { shouldShowPost, sortPostsByDate, extractTags } from '@/utils/markdown';
+import { optimizePostImagePath } from '@/utils/images';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import PostCard from '@/components/PostCard.astro';
+import Tags from '@/components/Tags.astro';
+import Pagination from '@/components/Pagination.astro';
+import Icon from '@/components/Icon.astro';
+
+// Get special content for posts page
+let postsPageContent;
+try {
+  postsPageContent = await getCollection('special', ({ slug }) => slug === 'posts');
+} catch (error) {
+  // Fallback if special collection doesn't exist or posts.md doesn't exist
+  postsPageContent = [];
+}
+
+const postsPageData = postsPageContent.length > 0 ? postsPageContent[0] : null;
+
+// Get query parameters
+const url = new URL(Astro.request.url);
+const selectedTag = url.searchParams.get('tag');
+
+// Get all posts
+const allPosts = await getCollection('posts');
+
+// Filter posts based on environment
+const isDev = import.meta.env.DEV;
+const visiblePosts = allPosts.filter(post => shouldShowPost(post, isDev));
+
+// Sort posts by date (newest first)
+const sortedPosts = sortPostsByDate(visiblePosts);
+
+// Filter by tag if specified
+const filteredPosts = selectedTag
+  ? sortedPosts.filter(post => post.data.tags?.includes(selectedTag))
+  : sortedPosts;
+
+// Pagination
+const postsPerPage = siteConfig.postOptions.postsPerPage;
+const totalPosts = filteredPosts.length;
+const totalPages = Math.ceil(totalPosts / postsPerPage);
+const currentPage = 1; // This is the first page
+const startIndex = 0;
+const endIndex = Math.min(postsPerPage, totalPosts);
+const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+
+// Extract all unique tags
+const allTags = extractTags(sortedPosts);
+
+// Generate SEO data
+const pageTitle = selectedTag
+  ? `Posts tagged "${selectedTag}"`
+  : (postsPageData?.data.title || 'All Posts');
+const pageDescription = selectedTag
+  ? `All posts tagged with "${selectedTag}"`
+  : (postsPageData?.data.description || `Browse all ${totalPosts} posts on ${siteConfig.title}`);
+
+const seoData = {
+  title: `${pageTitle} | ${siteConfig.title}`,
+  description: pageDescription,
+  canonical: Astro.url.href,
+  ogType: 'website' as const
+};
+
+// Pagination info
+const baseUrl = selectedTag ? `/posts/tag/${encodeURIComponent(selectedTag)}` : '/posts';
+const pagination = {
+  currentPage,
+  totalPages,
+  hasNext: currentPage < totalPages,
+  hasPrev: false,
+  nextUrl: totalPages > 1 ? '/posts/2' : undefined,
+  prevUrl: undefined
+};
+---
+
+<BaseLayout seoData={seoData}>
+  <Fragment slot="head">
+    <!-- Preload only the first post's image to avoid unused preload warnings -->
+    {paginatedPosts.length > 0 && (() => {
+      const firstPost = paginatedPosts[0];
+      if (!firstPost.data.image || typeof firstPost.data.image === 'string' && firstPost.data.image.startsWith('http')) return null;
+
+      const showCoverImages = siteConfig.postOptions.showPostCardCoverImages;
+      const shouldShowCoverImage = ['all', 'posts', 'featured-and-posts'].includes(showCoverImages);
+
+      return shouldShowCoverImage ? (
+        <link
+          rel="preload"
+          as="image"
+          href={optimizePostImagePath(firstPost.data.image, undefined, firstPost.id)}
+          fetchpriority="high"
+        />
+      ) : null;
+    })()}
+  </Fragment>
+
+  <div class="py-8 relative">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8 mb-12" style={`max-width: ${siteConfig.layout.contentWidth}`}>
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="flex items-start justify-between mb-3">
+          <h1 class="text-lg font-bold text-primary-900 dark:text-primary-50">
+            {pageTitle}
+          </h1>
+          <div class="flex items-center space-x-2">
+            <a
+              href="/rss.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to RSS feed"
+              data-no-swup
+            >
+              <Icon name="rss" class="w-4 h-4 mr-1.5" />
+              RSS Feed
+            </a>
+            <a
+              href="/feed.xml"
+              class="inline-flex items-center px-3 py-2 text-sm font-medium text-highlight-600 dark:text-highlight-400 bg-highlight-50 dark:bg-highlight-900/20 rounded-lg border border-highlight-200 dark:border-highlight-700 hover:bg-highlight-100 dark:hover:bg-highlight-900/40 hover:text-highlight-700 dark:hover:text-highlight-300 transition-all duration-200"
+              title="Subscribe to Atom feed"
+              data-no-swup
+            >
+              <Icon name="atom" class="w-4 h-4 mr-1.5" />
+              Atom Feed
+            </a>
+          </div>
+        </div>
+        <p class="text-base text-primary-600 dark:text-primary-300">
+          {selectedTag ? (
+            <>
+              Showing <strong>{filteredPosts.length}</strong> posts tagged with
+              <span class="inline-flex items-center px-2 py-1 bg-highlight-100 dark:bg-highlight-900/30 text-highlight-800 dark:text-highlight-200 rounded text-sm font-medium ml-1">
+                #{selectedTag}
+              </span>
+            </>
+          ) : (
+            <>Explore all <strong>{totalPosts}</strong> posts</>
+          )}
+        </p>
+
+        {selectedTag && (
+          <div class="mt-4">
+            <a
+              href="/posts"
+              class="inline-flex items-center text-sm text-primary-600 dark:text-primary-300 hover:text-primary-800 dark:hover:text-primary-200 transition-colors"
+            >
+              <Icon name="arrow-left" class="w-4 h-4 mr-1" />
+              Show all posts
+            </a>
+          </div>
+        )}
+      </header>
+
+      <div class="relative">
+        <!-- Main content -->
+        <div class="max-w-none">
+          {paginatedPosts.length > 0 ? (
+            <>
+              <!-- Posts list -->
+              <div class="space-y-4 mb-12">
+                {paginatedPosts.map((post, index) => (
+                  <PostCard post={post} eager={index < 2} context="posts" />
+                ))}
+              </div>
+
+              <!-- Pagination -->
+              <Pagination pagination={pagination} baseUrl={baseUrl} />
+            </>
+          ) : selectedTag ? (
+            <!-- No posts for selected tag -->
+            <div class="text-center py-16">
+              <Icon name="tag" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
+              <h2 class="font-semibold text-primary-900 dark:text-primary-50 mb-4">
+                No posts found
+              </h2>
+              <p class="text-primary-600 dark:text-primary-300 mb-8 max-w-md mx-auto">
+                There are no posts tagged with "{selectedTag}". Try browsing other tags or
+                <a href="/posts" class="text-primary-600 dark:text-primary-300 hover:underline">view all posts</a>.
+              </p>
+            </div>
+          ) : (
+            <!-- No posts at all -->
+            <div class="text-center py-16">
+              <Icon name="file-text" class="w-16 h-16 text-primary-400 dark:text-primary-500 mx-auto mb-6" />
+              <h2 class="text-2xl font-semibold text-primary-900 dark:text-primary-50 mb-4">
+                No posts yet
+              </h2>
+              <p class="text-primary-600 dark:text-primary-300 mb-8">
+                This blog is just getting started. Check back soon for new content!
+              </p>
+              {isDev && (
+                <div class="max-w-md mx-auto p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p class="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Dev Mode:</strong> Add some posts to the <code>content/posts/</code> directory to see them here.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <!-- Mobile sidebar - appears below content on mobile/tablet -->
+        <div class="xl:hidden mt-12 space-y-6">
+          <!-- Tags -->
+          {siteConfig.postOptions.tags && allTags.length > 0 && (
+            <Tags tags={allTags} />
+          )}
+        </div>
+
+        <!-- Desktop sidebar - floats to the right of the content container -->
+        <div class="hidden xl:block absolute top-0 left-full ml-8 w-64 h-full">
+          <div class="sticky top-24 pb-6" id="tags-sidebar">
+            <!-- Tags -->
+            {siteConfig.postOptions.tags && allTags.length > 0 && (
+              <Tags tags={allTags} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  /* Enhanced posts page styles */
+  .posts-grid {
+    display: grid;
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .posts-grid {
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+  }
+
+  /* Tag highlight in header */
+  .tag-highlight {
+    @apply bg-gradient-to-r from-highlight-500 to-highlight-600 text-white;
+  }
+</style>
+
+<Fragment slot="scripts">
+  <script>
+    // Constants for tags sidebar height calculation
+    const BOTTOM_SPACING = 96; // 6rem = 96px - fixed spacing from bottom of viewport
+    const MIN_SIDEBAR_HEIGHT = 200; // Minimum height for sidebar to be useful
+
+    // Global function to calculate and set tags sidebar max height
+    function updateTagsSidebarHeight() {
+      const sidebarContent = document.querySelector('.tags-container') as HTMLElement;
+      const sidebarContainer = document.querySelector('#tags-sidebar') as HTMLElement;
+
+      if (!sidebarContent || !sidebarContainer) return;
+
+      // Get the sidebar container's position relative to viewport
+      const rect = sidebarContainer.getBoundingClientRect();
+      const sidebarTop = rect.top;
+
+      // Calculate available space: viewport height - sidebar top position - bottom spacing
+      const availableHeight = window.innerHeight - sidebarTop - BOTTOM_SPACING;
+
+      // Ensure minimum height and maximum reasonable height (don't let it be too tall)
+      const maxHeight = Math.max(MIN_SIDEBAR_HEIGHT, Math.min(availableHeight, window.innerHeight * 0.7));
+
+      // Apply the max height to the tags container
+      const currentMaxHeight = parseInt(sidebarContent.style.maxHeight || '0', 10);
+      if (Math.abs(maxHeight - currentMaxHeight) > 10) {
+        sidebarContent.style.maxHeight = `${maxHeight}px`;
+        sidebarContent.style.overflowY = 'auto';
+      }
+    }
+
+    // Debounce function for performance
+    function debounce(func: Function, wait: number) {
+      let timeout: ReturnType<typeof setTimeout>;
+      return function executedFunction(...args: any[]) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Global function to initialize tags sidebar
+    function initializeTagsSidebar() {
+      const sidebarContainer = document.querySelector('#tags-sidebar') as HTMLElement;
+
+      if (!sidebarContainer) return;
+
+      // Calculate initial sidebar height immediately
+      updateTagsSidebarHeight();
+
+      // Set up resize observer for height recalculation
+      const debouncedUpdateHeight = debounce(() => {
+        updateTagsSidebarHeight();
+      }, 150);
+
+      window.addEventListener('resize', debouncedUpdateHeight);
+    }
+
+    // Make functions globally available
+    (window as any).initializeTagsSidebar = initializeTagsSidebar;
+    (window as any).updateTagsSidebarHeight = updateTagsSidebarHeight;
+
+    // Initialize on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', initializeTagsSidebar);
+  </script>
+</Fragment>

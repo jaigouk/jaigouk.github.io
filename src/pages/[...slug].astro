@@ -1,0 +1,80 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import { siteConfig } from '@/config';
+import { shouldShowContent } from '@/utils/markdown';
+import PageLayout from '@/layouts/PageLayout.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // Get all pages
+  const pages = await getCollection('pages');
+
+  // Get all special pages
+  const specialPages = await getCollection('special');
+
+  // Filter pages based on environment (in dev, show all including drafts)
+  const isDev = import.meta.env.DEV;
+  const visiblePages = pages.filter(page => {
+    // Filter out special pages that are handled by dedicated routes
+    const specialPageSlugs = ['home', '404'];
+    if (specialPageSlugs.includes(page.id)) {
+      return false;
+    }
+    // Filter drafts in production
+    return shouldShowContent(page, isDev);
+  });
+
+  // Generate paths for regular pages
+  const pagePaths = visiblePages.map(page => ({
+    params: { slug: page.id },
+    props: { page }
+  }));
+
+  // Generate paths for special pages (excluding home and 404 which have special handling)
+  // Special pages serve as fallback content when features are disabled
+  const specialPaths = specialPages
+    .filter(page => {
+      // Always exclude home and 404
+      if (['home', '404'].includes(page.id)) {
+        return false;
+      }
+
+      // For projects and docs: only include if their features are disabled
+      // When features are enabled, the dedicated routes handle these paths
+      if (page.id === 'projects') {
+        return !siteConfig.optionalContentTypes.projects;
+      }
+
+      if (page.id === 'docs') {
+        return !siteConfig.optionalContentTypes.docs;
+      }
+
+      return true;
+    })
+    .map(page => ({
+      params: { slug: page.id },
+      props: { page }
+    }));
+
+  return [...pagePaths, ...specialPaths];
+};
+
+export interface Props {
+  page: any;
+}
+
+const { page } = Astro.props;
+
+// Validate page data
+if (!page) {
+  return Astro.redirect('/404');
+}
+
+// Check if page should be visible (handles drafts in production)
+const isDev = import.meta.env.DEV;
+if (!shouldShowContent(page, isDev)) {
+  return Astro.redirect('/404');
+}
+---
+
+<PageLayout page={page} />

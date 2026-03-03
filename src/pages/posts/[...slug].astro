@@ -1,0 +1,40 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import { shouldShowPost } from '@/utils/markdown';
+import PostLayout from '@/layouts/PostLayout.astro';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  // Get all posts
+  const posts = await getCollection('posts');
+
+  // Filter posts for production (in dev, show all including drafts)
+  const isDev = import.meta.env.DEV;
+  const visiblePosts = posts.filter(post => shouldShowPost(post, isDev));
+
+  // Generate paths
+  return visiblePosts.map(post => ({
+    params: { slug: post.id },
+    props: { post }
+  }));
+};
+
+export interface Props {
+  post: any;
+}
+
+const { post } = Astro.props;
+
+// Validate post data
+if (!post) {
+  return Astro.redirect('/404');
+}
+
+// Check if post should be visible in production
+const isDev = import.meta.env.DEV;
+if (!shouldShowPost(post, isDev)) {
+  return Astro.redirect('/404');
+}
+---
+
+<PostLayout post={post} />

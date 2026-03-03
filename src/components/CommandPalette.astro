@@ -1,0 +1,1444 @@
+---
+import { siteConfig, getThemeDisplayName } from '../config';
+import Icon from './Icon.astro';
+---
+
+<!-- Make site configuration available to client-side JavaScript -->
+<script define:vars={{ siteConfig, getThemeDisplayName }}>
+  // Make siteConfig available globally for the command palette
+  window.siteConfig = siteConfig;
+  // Make theme display name utility available globally
+  window.getThemeDisplayName = getThemeDisplayName;
+</script>
+
+<!-- Command Palette Overlay -->
+<div 
+  id="command-palette-overlay" 
+  class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm animate-fade-in"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="command-palette-title"
+>
+  <div class="flex min-h-full items-start justify-center p-4 sm:p-8">
+    <div class="w-full max-w-2xl bg-white dark:bg-primary-900 rounded-xl shadow-2xl border border-primary-200 dark:border-primary-700 animate-scale-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-primary-200 dark:border-primary-700">
+        <h2 id="command-palette-title" class="text-lg font-semibold text-primary-900 dark:text-primary-50">
+          Command Palette
+        </h2>
+        <button 
+          id="command-palette-close"
+          class="p-1 text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 transition-colors"
+          aria-label="Close command palette"
+        >
+          <Icon name="x" class="w-5 h-5" />
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="p-4">
+        <div class="relative">
+          <input
+            id="command-palette-input"
+            type="text"
+            placeholder={siteConfig.commandPalette.placeholder}
+            class="w-full pl-4 pr-10 py-3 bg-primary-50 dark:bg-primary-800 border border-primary-200 dark:border-primary-600 rounded-lg text-primary-900 dark:text-primary-50 placeholder-primary-500 dark:placeholder-primary-400 focus:outline-none focus:ring-2 focus:ring-highlight-500 focus:border-transparent"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <!-- Search icon -->
+          <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <Icon name="search" class="w-4 h-4 text-primary-500 dark:text-primary-400" />
+          </div>
+          <!-- Inline loading indicator -->
+          <div id="command-palette-inline-loading" class="absolute right-3 top-1/2 transform -translate-y-1/2 hidden">
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-primary-300 dark:border-primary-600 border-t-highlight-500"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="command-palette-results" class="max-h-96 overflow-y-auto scrollbar-hide">
+        <!-- Loading state -->
+        <div id="command-palette-loading" class="hidden p-4 text-center">
+          <div class="inline-flex items-center justify-center space-x-2 text-primary-500 dark:text-primary-400">
+            <span>Searching...</span>
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-primary-300 dark:border-primary-600 border-t-highlight-500"></div>
+          </div>
+        </div>
+
+        <!-- No results -->
+        <div id="command-palette-no-results" class="hidden p-8 text-center">
+          <Icon name="search-x" class="w-8 h-8 text-primary-400 dark:text-primary-500 mx-auto mb-2" />
+          <p class="text-primary-600 dark:text-primary-300">No results found</p>
+          <p class="text-sm text-primary-500 dark:text-primary-400 mt-1">Try a different search term</p>
+        </div>
+
+        <!-- Default items (shown when no search) -->
+        <div id="command-palette-default" class="divide-y divide-primary-200 dark:divide-primary-700">
+          <!-- Quick Actions -->
+          {siteConfig.commandPalette.sections.quickActions && siteConfig.commandPalette.quickActions.enabled && 
+           (siteConfig.commandPalette.quickActions.toggleMode || 
+            siteConfig.commandPalette.quickActions.graphView || 
+            siteConfig.commandPalette.quickActions.changeTheme) && (
+            <div class="p-2">
+              <div class="px-3 py-2 text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">
+                Quick Actions
+              </div>
+              {siteConfig.commandPalette.quickActions.toggleMode && (
+                <button 
+                  data-action="toggle-theme"
+                  class="w-full flex items-center space-x-3 px-3 py-2 text-left hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                >
+                  <Icon name="sun-moon" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                  <span class="text-primary-900 dark:text-primary-50">Toggle Light/Dark Mode</span>
+                </button>
+              )}
+              
+              {siteConfig.commandPalette.quickActions.graphView && siteConfig.postOptions.graphView.enabled && (
+                <button 
+                  data-action="open-graph"
+                  class="w-full flex items-center space-x-3 px-3 py-2 text-left hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                >
+                  <Icon name="git-fork" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                  <span class="text-primary-900 dark:text-primary-50">Graph View</span>
+                </button>
+              )}
+              
+              {siteConfig.commandPalette.quickActions.changeTheme && (
+                <button 
+                  data-action="change-theme"
+                  class="w-full flex items-center space-x-3 px-3 py-2 text-left hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                >
+                  <Icon name="palette" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                  <span class="text-primary-900 dark:text-primary-50">Change Theme</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <!-- Pages -->
+          {siteConfig.commandPalette.sections.pages && siteConfig.navigation.pages.length > 0 && (
+            <div class="p-2">
+              <div class="px-3 py-2 text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">
+                Pages
+              </div>
+              {siteConfig.navigation.pages.map(page => {
+                const hasChildren = page.children && page.children.length > 0;
+                const hasUrl = page.url && page.url.trim() !== '';
+                
+                if (hasChildren) {
+                  // Parent item with children - show grouped
+                  return (
+                    <div class="command-palette-nav-group">
+                      {/* Parent item */}
+                      {hasUrl ? (
+                        <a 
+                          href={page.url}
+                          class="w-full flex items-center space-x-3 px-3 py-2 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                          target={page.url.startsWith('http') ? '_blank' : undefined}
+                        >
+                          <Icon name="file-text" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                          <span class="text-primary-900 dark:text-primary-50 font-medium">{page.title}</span>
+                          {page.url.startsWith('http') && (
+                            <Icon name="external-link" class="w-3 h-3 text-primary-400 dark:text-primary-500 ml-auto" />
+                          )}
+                        </a>
+                      ) : (
+                        <div class="w-full flex items-center space-x-3 px-3 py-2 text-primary-700 dark:text-primary-300">
+                          <Icon name="folder" class="w-4 h-4 text-primary-500 dark:text-primary-400" />
+                          <span class="text-primary-900 dark:text-primary-50 font-medium">{page.title}</span>
+                        </div>
+                      )}
+                      {/* Children items (indented) */}
+                      {page.children.map(child => (
+                        <a 
+                          href={child.url || '#'}
+                          class="w-full flex items-center space-x-3 px-3 py-2 pl-8 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                          target={child.url?.startsWith('http') ? '_blank' : undefined}
+                        >
+                          <Icon name="file-text" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                          <span class="text-primary-900 dark:text-primary-50">{child.title}</span>
+                          {child.url?.startsWith('http') && (
+                            <Icon name="external-link" class="w-3 h-3 text-primary-400 dark:text-primary-500 ml-auto" />
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  );
+                } else {
+                  // Regular navigation item without children
+                  return (
+                    <a 
+                      href={page.url || '#'}
+                      class="w-full flex items-center space-x-3 px-3 py-2 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                      target={page.url?.startsWith('http') ? '_blank' : undefined}
+                    >
+                      <Icon name="file-text" class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                      <span class="text-primary-900 dark:text-primary-50">{page.title}</span>
+                      {page.url?.startsWith('http') && (
+                        <Icon name="external-link" class="w-3 h-3 text-primary-400 dark:text-primary-500 ml-auto" />
+                      )}
+                    </a>
+                  );
+                }
+              })}
+            </div>
+          )}
+
+          <!-- Social Links -->
+          {siteConfig.commandPalette.sections.social && (siteConfig.navigation.social || []).filter((social) => social && social.url && social.icon).length > 0 && (
+            <div class="p-2">
+              <div class="px-3 py-2 text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">
+                Social
+              </div>
+              {(siteConfig.navigation.social || []).filter((social) => social && social.url && social.icon).map(social => (
+                <a 
+                  href={social.url}
+                  target="_blank"
+                  class="w-full flex items-center space-x-3 px-3 py-2 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group"
+                >
+                  <Icon name={social.icon} class="w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500" />
+                  <span class="text-primary-900 dark:text-primary-50">{social.title}</span>
+                  <Icon name="external-link" class="w-3 h-3 text-primary-400 dark:text-primary-500 ml-auto" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <!-- Search results will be populated here -->
+        <div id="command-palette-search-results" class="hidden divide-y divide-primary-200 dark:divide-primary-700 transition-opacity duration-200">
+        </div>
+
+        <!-- Theme Selection -->
+        <div id="command-palette-theme-selection" class="hidden divide-y divide-primary-200 dark:divide-primary-700">
+          <div class="p-2">
+            <div class="px-3 py-2 text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide">
+              Choose Theme
+            </div>
+            <div id="theme-list" class="space-y-1">
+              <!-- Themes will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-3 border-t border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-800 rounded-b-xl">
+        <div class="flex items-center justify-between text-xs text-primary-500 dark:text-primary-400">
+          <span>Use ↑↓ to navigate, ↵ to select, ESC to close</span>
+          <!-- <span>Press <kbd class="px-1 py-0.5 bg-white dark:bg-primary-700 rounded border">{siteConfig.commandPalette.shortcut.replace('ctrl', '⌘').replace('+', '').toUpperCase()}</kbd> to return</span> -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Define the structure for items in the command palette
+  interface CommandPaletteItem {
+    id: string;
+    title: string;
+    description?: string; // Optional description for posts
+    url: string;
+    type: 'post' | 'page' | 'project' | 'documentation' | 'docs' | 'action';
+    score?: number; // Score for search relevance
+    tags?: string[]; // Tags for posts
+  }
+
+  // Command Palette Class Definition
+  class CommandPalette {
+    private overlay: HTMLElement;
+    private input: HTMLInputElement;
+    private results: HTMLElement;
+    private loading: HTMLElement;
+    private inlineLoading: HTMLElement;
+    private noResults: HTMLElement;
+    private defaultItems: HTMLElement;
+    private searchResults: HTMLElement;
+    private themeSelection: HTMLElement;
+    private themeList: HTMLElement;
+    private isOpen: boolean = false;
+    private selectedIndex: number = -1;
+    private items: CommandPaletteItem[] = []; // Holds all fetched items
+    private filteredItems: CommandPaletteItem[] = []; // Holds items after filtering by search query
+    private searchTimeout: number | null = null; // For debouncing
+    private cache: Map<string, CommandPaletteItem[]> = new Map(); // Search result cache
+    private fuse: any = null; // Fuse.js instance for fuzzy search
+    private searchHistory: string[] = []; // Track search history for suggestions
+    private currentContext: string = 'all'; // Current search context
+    private readonly MAX_RESULTS = 50; // Increased for better UX
+    private readonly SEARCH_DEBOUNCE_MS = 100; // Faster debounce for better responsiveness
+    private readonly MAX_CACHE_SIZE = 100; // Limit cache size
+    private readonly VIRTUAL_SCROLL_THRESHOLD = 100; // Enable virtual scrolling for large lists
+
+    constructor() {
+      // Get references to DOM elements
+      this.overlay = document.getElementById('command-palette-overlay')!;
+      this.input = document.getElementById('command-palette-input') as HTMLInputElement;
+      this.results = document.getElementById('command-palette-results')!;
+      this.loading = document.getElementById('command-palette-loading')!;
+      this.inlineLoading = document.getElementById('command-palette-inline-loading')!;
+      this.noResults = document.getElementById('command-palette-no-results')!;
+      this.defaultItems = document.getElementById('command-palette-default')!;
+      this.searchResults = document.getElementById('command-palette-search-results')!;
+      this.themeSelection = document.getElementById('command-palette-theme-selection')!;
+      this.themeList = document.getElementById('theme-list')!;
+
+      // Initialize the palette and preload data
+      this.init();
+      this.loadSearchHistory();
+      this.preloadData();
+      // Don't call setInitialTheme() - theme management is handled by BaseLayout.astro
+    }
+
+    private init() {
+      // Add event listener to open the palette via custom event
+      window.addEventListener('openCommandPalette', () => this.open());
+      
+      // Add event listener to close the palette when the close button is clicked
+      const closeButton = document.getElementById('command-palette-close');
+      if (closeButton) {
+        closeButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.close();
+        });
+      }
+      
+      // Add event listener to close the palette if clicked outside the modal content
+      this.overlay.addEventListener('click', (e) => {
+        // Close if clicking the overlay or anywhere outside the modal content
+        const modalContent = this.overlay.querySelector('.w-full.max-w-2xl');
+        if (e.target === this.overlay || (modalContent && !modalContent.contains(e.target as Node))) {
+          this.close();
+        }
+      });
+
+      // Add event listeners for the search input
+      this.input.addEventListener('input', (e) => this.handleSearch((e.target as HTMLInputElement).value));
+      this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+      // Add event listener for quick actions (like theme toggle) - only within command palette
+      this.overlay.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const actionButton = target.closest('[data-action]');
+        if (actionButton) {
+          e.preventDefault(); // Prevent default button behavior
+          const action = actionButton.getAttribute('data-action');
+          this.executeAction(action!);
+        }
+      });
+
+      // Add event listener for all command palette links to close the palette when clicked
+      document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const commandPaletteLink = target.closest('#command-palette-overlay a[href]');
+        if (commandPaletteLink && this.isOpen) {
+          e.preventDefault();
+          const href = commandPaletteLink.getAttribute('href');
+          if (href) {
+            this.close();
+            
+            // Navigate after a small delay to ensure the palette closes first
+            setTimeout(() => {
+              if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+                // External link - open in new tab
+                window.open(href, '_blank');
+              } else {
+                // Internal link - use Swup if available, otherwise regular navigation
+                if ((window as any).swup) {
+                  (window as any).swup.navigate(href);
+                } else {
+                  window.location.href = href;
+                }
+              }
+            }, 50);
+          }
+        }
+      });
+
+      // Add global keyboard listener for Escape key to close the palette
+      document.addEventListener('keydown', (e) => {
+        if (this.isOpen && e.key === 'Escape') {
+          this.close();
+        }
+      });
+      
+      // Command+K shortcut is handled globally in BaseLayout
+    }
+
+    private async preloadData() {
+      // Preload posts data in the background for faster search
+      this.loadPosts();
+    }
+
+    private async loadPosts() {
+      // Only load if not already loaded
+      if (this.items.length > 0) {
+        return;
+      }
+
+      try {
+        // Get search configuration from the global config
+        const searchConfig = (window as any).siteConfig?.commandPalette?.search || {
+          posts: true,
+          pages: false,
+          projects: false,
+          docs: false
+        };
+
+        // Get optional content types configuration
+        const optionalContentTypes = (window as any).siteConfig?.optionalContentTypes || {
+          projects: true,
+          docs: true
+        };
+
+        const allItems = [];
+        const promises = [];
+
+        // Load posts if enabled in search config
+        if (searchConfig.posts) {
+          promises.push(
+            fetch('/api/posts.json').then(response => 
+              response.ok ? response.json() : []
+            )
+          );
+        } else {
+          promises.push(Promise.resolve([]));
+        }
+
+        // Load pages if enabled in search config
+        if (searchConfig.pages) {
+          promises.push(
+            fetch('/api/pages.json').then(response => {
+              return response.ok ? response.json() : [];
+            }).catch(error => {
+              return [];
+            })
+          );
+        } else {
+          promises.push(Promise.resolve([]));
+        }
+
+        // Load projects if enabled in search config AND projects content type is enabled
+        if (searchConfig.projects && optionalContentTypes.projects) {
+          promises.push(
+            fetch('/api/projects.json').then(response => 
+              response.ok ? response.json() : []
+            )
+          );
+        } else {
+          promises.push(Promise.resolve([]));
+        }
+
+        // Load documentation if enabled in search config AND docs content type is enabled
+        if (searchConfig.docs && optionalContentTypes.docs) {
+          promises.push(
+            fetch('/api/docs.json').then(response => {
+              return response.ok ? response.json() : [];
+            }).catch(error => {
+              return [];
+            })
+          );
+        } else {
+          promises.push(Promise.resolve([]));
+        }
+
+        // Wait for all API calls to complete
+        const [posts, pages, projects, docs] = await Promise.all(promises);
+
+        // Add items to the array
+        allItems.push(...posts, ...pages, ...projects, ...docs);
+
+        this.items = allItems;
+        // Don't initialize Fuse.js immediately - wait until first search
+      } catch (error) {
+        // Fallback to empty array
+        this.items = [];
+      }
+    }
+
+    private async initializeFuseSearch() {
+      try {
+        // Add a small delay to ensure the module is ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Try to load Fuse.js with better error handling
+        const fuseModule = await import('fuse.js');
+        const Fuse = fuseModule.default || fuseModule;
+        
+        if (typeof Fuse === 'function') {
+          this.fuse = new Fuse(this.items, {
+            keys: [
+              { name: 'title', weight: 0.5 },
+              { name: 'description', weight: 0.2 },
+              { name: 'tags', weight: 0.3 }
+            ],
+            threshold: 0.3, // Lower threshold for more fuzzy matching
+            includeScore: true,
+            includeMatches: true,
+            minMatchCharLength: 1,
+            shouldSort: true,
+            findAllMatches: true,
+            ignoreLocation: true,
+            useExtendedSearch: true
+          });
+        } else {
+          throw new Error('Fuse.js not properly loaded');
+        }
+      } catch (error) {
+        // Fallback to basic search if Fuse.js fails to load
+        this.fuse = null;
+      }
+    }
+
+    // Advanced search using Fuse.js with fallback to basic search
+    private async searchItems(query: string): Promise<CommandPaletteItem[]> {
+      if (!query.trim()) return [];
+
+      // Initialize Fuse.js lazily on first search
+      if (!this.fuse && this.items.length > 0) {
+        await this.initializeFuseSearch();
+      }
+
+      // Use Fuse.js if available, otherwise fallback to basic search
+      if (this.fuse) {
+        return this.fuzzySearch(query);
+      } else {
+        return this.basicSearch(query);
+      }
+    }
+
+    private fuzzySearch(query: string): CommandPaletteItem[] {
+      const results = this.fuse.search(query);
+      return results
+        .slice(0, this.MAX_RESULTS)
+        .map((result: any) => ({
+          ...result.item,
+          score: result.score ? (1 - result.score) * 1000 : 0, // Convert Fuse score to our scale
+          matches: result.matches
+        }));
+    }
+
+    private basicSearch(query: string): CommandPaletteItem[] {
+      const queryLower = query.toLowerCase();
+      const queryWords = queryLower.split(/\s+/).filter(word => word.length > 0);
+
+      return this.items
+        .map(item => {
+          const title = item.title.toLowerCase();
+          const description = (item.description || '').toLowerCase();
+          const tags = (item.tags || []).join(' ').toLowerCase();
+
+          let score = 0;
+
+          // Exact title match gets highest score
+          if (title === queryLower) {
+            score += 1000;
+          } else if (title.startsWith(queryLower)) {
+            score += 500;
+          } else if (title.includes(queryLower)) {
+            score += 200;
+          }
+
+          // Description match gets medium score
+          if (description.includes(queryLower)) {
+            score += 100;
+          }
+
+          // Tags matching gets high score (similar to title)
+          if (tags.includes(queryLower)) {
+            score += 300;
+          }
+
+          // Word-by-word matching for better fuzzy search
+          queryWords.forEach(word => {
+            if (title.includes(word)) {
+              score += 50;
+            }
+            if (description.includes(word)) {
+              score += 25;
+            }
+            if (tags.includes(word)) {
+              score += 40; // Higher weight for tag matches
+            }
+          });
+
+          // Boost score for matches at word boundaries
+          const wordBoundaryRegex = new RegExp(`\\b${queryLower}`, 'i');
+          if (wordBoundaryRegex.test(title)) {
+            score += 100;
+          }
+          if (wordBoundaryRegex.test(description)) {
+            score += 50;
+          }
+          if (wordBoundaryRegex.test(tags)) {
+            score += 80; // Higher weight for tag word boundary matches
+          }
+
+          return { ...item, score };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, this.MAX_RESULTS);
+    }
+
+    private applyPreservedSelection() {
+      // Only apply if we have a valid selection and the palette is open
+      if (this.selectedIndex >= 0 && this.isOpen) {
+        // Check if we're showing search results or default items
+        const searchResultsVisible = !this.searchResults.classList.contains('hidden');
+        const defaultItemsVisible = !this.defaultItems.classList.contains('hidden');
+        
+        let items: NodeListOf<Element>;
+        
+        if (searchResultsVisible) {
+          // Get search result items
+          items = this.searchResults.querySelectorAll('.command-palette-item');
+        } else if (defaultItemsVisible) {
+          // Get default items (quick actions, pages, social links)
+          items = this.defaultItems.querySelectorAll('a, button[data-action]');
+        } else {
+          return; // No items to highlight
+        }
+
+        // Ensure the selected index is within bounds
+        if (this.selectedIndex < items.length) {
+          this.updateSelection(items);
+        } else {
+          // If the preserved index is out of bounds, reset to -1
+          this.selectedIndex = -1;
+        }
+      }
+    }
+
+    private open() {
+      this.isOpen = true;
+      this.overlay.classList.remove('hidden'); // Show the overlay
+      this.input.focus(); // Focus the input field
+      this.input.value = ''; // Clear any previous search query
+      // Don't reset selectedIndex - preserve last selection for better UX
+      this.showDefault(); // Show default items initially
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+      // Don't call setInitialTheme() here - it should only be called once during initialization
+      
+      // Apply visual highlighting to the preserved selection after a brief delay
+      // to ensure the DOM is ready
+      setTimeout(() => {
+        this.applyPreservedSelection();
+      }, 10);
+    }
+
+    private close() {
+      this.isOpen = false;
+      this.overlay.classList.add('hidden'); // Hide the overlay
+      this.input.blur(); // Remove focus from input
+      this.input.value = ''; // Clear search input
+      // Don't reset selectedIndex - preserve it for next time palette opens
+      
+      // Clear search timeout if active
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = null;
+      }
+      
+      // Use global scroll restoration function
+      if ((window as any).restoreScroll) {
+        (window as any).restoreScroll();
+      } else {
+        // Fallback if global function is not available
+        document.body.style.overflow = '';
+        document.documentElement.classList.remove('force-scroll-top');
+        document.body.offsetHeight;
+      }
+    }
+
+    // Methods to control the visibility of different sections within the palette
+    private showDefault() {
+      this.loading.classList.add('hidden');
+      this.inlineLoading.classList.add('hidden');
+      this.noResults.classList.add('hidden');
+      this.searchResults.classList.add('hidden');
+      this.themeSelection.classList.add('hidden');
+      this.defaultItems.classList.remove('hidden');
+    }
+
+    private showLoading() {
+      this.defaultItems.classList.add('hidden');
+      this.noResults.classList.add('hidden');
+      this.searchResults.classList.add('hidden');
+      this.themeSelection.classList.add('hidden');
+      this.loading.classList.add('hidden');
+      this.inlineLoading.classList.remove('hidden');
+    }
+
+    private showNoResults() {
+      this.defaultItems.classList.add('hidden');
+      this.loading.classList.add('hidden');
+      this.inlineLoading.classList.add('hidden');
+      this.searchResults.classList.add('hidden');
+      this.themeSelection.classList.add('hidden');
+      this.noResults.classList.remove('hidden');
+    }
+
+    private showSearchResults() {
+      this.defaultItems.classList.add('hidden');
+      this.loading.classList.add('hidden');
+      this.inlineLoading.classList.add('hidden');
+      this.noResults.classList.add('hidden');
+      this.themeSelection.classList.add('hidden');
+      this.searchResults.classList.remove('hidden');
+    }
+
+    private showThemeSelection() {
+      this.defaultItems.classList.add('hidden');
+      this.loading.classList.add('hidden');
+      this.inlineLoading.classList.add('hidden');
+      this.noResults.classList.add('hidden');
+      this.searchResults.classList.add('hidden');
+      this.themeSelection.classList.remove('hidden');
+    }
+
+    private showInlineLoading() {
+      // Show inline loading indicator while keeping current results visible
+      this.inlineLoading.classList.remove('hidden');
+      // Don't hide other sections - keep current results visible
+    }
+
+    private handleSearch(query: string) {
+      // Clear existing timeout
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout);
+      }
+
+      if (!query.trim()) {
+        this.showDefault(); // Show default items if query is empty
+        // Apply preserved selection when returning to default view
+        setTimeout(() => {
+          this.applyPreservedSelection();
+        }, 10);
+        return;
+      }
+
+      // Reset selection when starting a new search
+      this.selectedIndex = -1;
+
+      // Show inline loading indicator while keeping current results visible
+      this.showInlineLoading();
+
+      // Debounce the search to avoid excessive processing
+      this.searchTimeout = window.setTimeout(() => {
+        this.performSearch(query);
+      }, this.SEARCH_DEBOUNCE_MS);
+    }
+
+    private async performSearch(query: string) {
+      const trimmedQuery = query.trim();
+      if (!trimmedQuery) {
+        this.showDefault();
+        return;
+      }
+
+      // Track search history
+      this.updateSearchHistory(trimmedQuery);
+
+      // Check cache first
+      const cacheKey = trimmedQuery.toLowerCase();
+      if (this.cache.has(cacheKey)) {
+        this.filteredItems = this.cache.get(cacheKey)!;
+        this.displaySearchResults();
+        return;
+      }
+
+      // Ensure posts are loaded
+      await this.loadPosts();
+
+      // Use improved search algorithm
+      this.filteredItems = await this.searchItems(trimmedQuery);
+
+      // Cache the results with size limit
+      this.manageCache(cacheKey, [...this.filteredItems]);
+
+      // Hide inline loading and show results
+      this.inlineLoading.classList.add('hidden');
+      this.displaySearchResults();
+    }
+
+    private updateSearchHistory(query: string) {
+      // Remove if already exists
+      const index = this.searchHistory.indexOf(query);
+      if (index > -1) {
+        this.searchHistory.splice(index, 1);
+      }
+      
+      // Add to beginning
+      this.searchHistory.unshift(query);
+      
+      // Keep only last 20 searches
+      this.searchHistory = this.searchHistory.slice(0, 20);
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem('command-palette-history', JSON.stringify(this.searchHistory));
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+
+    private loadSearchHistory() {
+      try {
+        const stored = localStorage.getItem('command-palette-history');
+        if (stored) {
+          this.searchHistory = JSON.parse(stored);
+        }
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+
+    private manageCache(key: string, results: CommandPaletteItem[]) {
+      // Remove oldest entries if cache is too large
+      if (this.cache.size >= this.MAX_CACHE_SIZE) {
+        const firstKey = this.cache.keys().next().value;
+        if (firstKey) {
+          this.cache.delete(firstKey);
+        }
+      }
+      
+      this.cache.set(key, results);
+    }
+
+    private displaySearchResults() {
+      if (this.filteredItems.length === 0) {
+        this.showNoResults();
+      } else {
+        // Add a subtle fade effect when updating results
+        this.searchResults.style.opacity = '0.7';
+        
+        // Use requestAnimationFrame for smooth transition
+        requestAnimationFrame(() => {
+          this.renderSearchResults();
+          this.showSearchResults();
+          
+          // Fade back to full opacity
+          requestAnimationFrame(() => {
+            this.searchResults.style.opacity = '1';
+          });
+        });
+      }
+    }
+
+    private renderSearchResults() {
+      // Clear previous search results
+      this.searchResults.innerHTML = '';
+
+      // Get search configuration
+      const searchConfig = (window as any).siteConfig?.commandPalette?.search || {
+        posts: true,
+        pages: false,
+        projects: false,
+        docs: false
+      };
+
+      // Get optional content types configuration
+      const optionalContentTypes = (window as any).siteConfig?.optionalContentTypes || {
+        projects: true,
+        docs: true
+      };
+
+      // Filter items by enabled content types
+      const enabledTypes: string[] = [];
+      if (searchConfig.posts) enabledTypes.push('post');
+      if (searchConfig.pages) enabledTypes.push('page');
+      if (searchConfig.projects && optionalContentTypes.projects) enabledTypes.push('project');
+      if (searchConfig.docs && optionalContentTypes.docs) enabledTypes.push('docs', 'documentation');
+
+      const filteredByType = this.filteredItems.filter((item: CommandPaletteItem) => enabledTypes.includes(item.type));
+
+      if (filteredByType.length === 0) {
+        return;
+      }
+
+      // Group items by type
+      const groupedItems = {
+        posts: filteredByType.filter(item => item.type === 'post'),
+        pages: filteredByType.filter(item => item.type === 'page'),
+        projects: filteredByType.filter(item => item.type === 'project'),
+        docs: filteredByType.filter(item => item.type === 'docs' || item.type === 'documentation')
+      };
+
+      // Render each content type section
+      Object.entries(groupedItems).forEach(([type, items]) => {
+        if (items.length > 0) {
+          const container = document.createElement('div');
+          container.className = 'p-2';
+
+          const header = document.createElement('div');
+          header.className = 'px-3 py-2 text-xs font-medium text-primary-500 dark:text-primary-400 uppercase tracking-wide';
+          
+          // Format section titles
+          const sectionTitles = {
+            posts: 'Posts',
+            pages: 'Pages', 
+            projects: 'Projects',
+            docs: 'Documentation'
+          };
+          
+          header.textContent = `${sectionTitles[type as keyof typeof sectionTitles]} (${items.length})`;
+          container.appendChild(header);
+
+          // Use virtual scrolling for large lists
+          if (items.length > this.VIRTUAL_SCROLL_THRESHOLD) {
+            this.renderVirtualizedResults(container, items);
+          } else {
+            this.renderStandardResults(container, items);
+          }
+
+          this.searchResults.appendChild(container);
+        }
+      });
+    }
+
+    private renderStandardResults(container: HTMLElement, items: CommandPaletteItem[]) {
+      // Use DocumentFragment for better performance
+      const fragment = document.createDocumentFragment();
+
+      items.forEach((item, index) => {
+        const anchor = this.createResultItem(item, index);
+        fragment.appendChild(anchor);
+      });
+
+      container.appendChild(fragment);
+    }
+
+    private renderVirtualizedResults(container: HTMLElement, items: CommandPaletteItem[]) {
+      // Simple virtual scrolling implementation
+      const ITEM_HEIGHT = 60; // Approximate height of each item
+      const VISIBLE_ITEMS = 10; // Number of items visible at once
+      const SCROLL_CONTAINER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+
+      // Create scroll container
+      const scrollContainer = document.createElement('div');
+      scrollContainer.className = 'overflow-y-auto';
+      scrollContainer.style.height = `${SCROLL_CONTAINER_HEIGHT}px`;
+
+      // Create virtual content container
+      const virtualContent = document.createElement('div');
+      virtualContent.style.height = `${items.length * ITEM_HEIGHT}px`;
+      virtualContent.style.position = 'relative';
+
+      // Create viewport container
+      const viewport = document.createElement('div');
+      viewport.style.position = 'absolute';
+      viewport.style.top = '0';
+      viewport.style.left = '0';
+      viewport.style.right = '0';
+
+      // Render initial visible items
+      this.renderVisibleItems(viewport, items, 0, VISIBLE_ITEMS);
+
+      // Add scroll listener for virtual scrolling
+      let scrollTimeout: number;
+      scrollContainer.addEventListener('scroll', () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = window.setTimeout(() => {
+          const scrollTop = scrollContainer.scrollTop;
+          const startIndex = Math.floor(scrollTop / ITEM_HEIGHT);
+          const endIndex = Math.min(startIndex + VISIBLE_ITEMS, items.length);
+          
+          // Clear and re-render visible items
+          viewport.innerHTML = '';
+          this.renderVisibleItems(viewport, items, startIndex, endIndex);
+          
+          // Update viewport position
+          viewport.style.transform = `translateY(${startIndex * ITEM_HEIGHT}px)`;
+        }, 16); // ~60fps
+      });
+
+      virtualContent.appendChild(viewport);
+      scrollContainer.appendChild(virtualContent);
+      container.appendChild(scrollContainer);
+    }
+
+    private renderVisibleItems(container: HTMLElement, items: CommandPaletteItem[], startIndex: number, endIndex: number) {
+      const fragment = document.createDocumentFragment();
+      
+      for (let i = startIndex; i < endIndex; i++) {
+        const item = items[i];
+        const anchor = this.createResultItem(item, i);
+        fragment.appendChild(anchor);
+      }
+      
+      container.appendChild(fragment);
+    }
+
+    private createResultItem(item: CommandPaletteItem, index: number): HTMLElement {
+      const anchor = document.createElement('a');
+      anchor.href = item.url;
+      anchor.dataset.index = index.toString();
+      anchor.className = `command-palette-item w-full flex items-start space-x-3 px-3 py-3 hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group ${index === this.selectedIndex ? 'bg-primary-50 dark:bg-primary-800' : ''}`;
+      
+      // Add click handler to close the palette when clicked
+      anchor.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.close();
+        
+        // Navigate after a small delay to ensure the palette closes first
+        setTimeout(() => {
+          if (item.url.startsWith('http') && !item.url.includes(window.location.hostname)) {
+            // External link - open in new tab
+            window.open(item.url, '_blank');
+          } else {
+            // Internal link - use Swup if available, otherwise regular navigation
+            if ((window as any).swup) {
+              (window as any).swup.navigate(item.url);
+            } else {
+              window.location.href = item.url;
+            }
+          }
+        }, 50);
+      });
+      
+      // Add icon based on content type
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'w-4 h-4 text-primary-500 dark:text-primary-400 group-hover:text-highlight-500 mt-0.5';
+      
+      let iconPath = '';
+      switch (item.type) {
+        case 'post':
+          iconPath = '<path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>';
+          break;
+        case 'project':
+          iconPath = '<path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>';
+          break;
+        case 'docs':
+        case 'documentation':
+          iconPath = '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><path d="M8 11h8"/><path d="M8 7h6"/>';
+          break;
+        case 'page':
+          iconPath = '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>';
+          break;
+        default:
+          iconPath = '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>';
+      }
+      
+      iconDiv.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
+      anchor.appendChild(iconDiv);
+
+      // Add container for title and description
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'flex-1 min-w-0';
+
+      // Add post title with highlighting
+      const titleSpan = document.createElement('div');
+      titleSpan.className = 'text-primary-900 dark:text-primary-50 font-medium';
+      titleSpan.innerHTML = this.highlightSearchTerm(item.title, this.input.value);
+      contentDiv.appendChild(titleSpan);
+
+      // Add post description if it exists with highlighting
+      if (item.description) {
+        const descriptionPara = document.createElement('div');
+        descriptionPara.className = 'text-sm text-primary-600 dark:text-primary-300 mt-1 truncate';
+        descriptionPara.innerHTML = this.highlightSearchTerm(item.description, this.input.value);
+        contentDiv.appendChild(descriptionPara);
+      }
+
+      anchor.appendChild(contentDiv);
+      return anchor;
+    }
+
+    // Helper method to highlight search terms in text
+    private highlightSearchTerm(text: string, searchTerm: string): string {
+      if (!searchTerm.trim()) return text;
+      
+      const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return text.replace(regex, '<mark class="bg-highlight-200 dark:bg-highlight-800 text-highlight-900 dark:text-highlight-100 px-1 rounded">$1</mark>');
+    }
+
+    private handleKeyDown(e: KeyboardEvent) {
+      // Check if we're showing search results, default items, or theme selection
+      const searchResultsVisible = !this.searchResults.classList.contains('hidden');
+      const defaultItemsVisible = !this.defaultItems.classList.contains('hidden');
+      const themeSelectionVisible = !this.themeSelection.classList.contains('hidden');
+      
+      let items: NodeListOf<Element>;
+      
+      if (searchResultsVisible) {
+        // Get search result items
+        items = this.searchResults.querySelectorAll('.command-palette-item');
+      } else if (themeSelectionVisible) {
+        // Get theme selection items
+        items = this.themeList.querySelectorAll('button');
+      } else if (defaultItemsVisible) {
+        // Get default items (quick actions, pages, social links)
+        items = this.defaultItems.querySelectorAll('a, button[data-action]');
+      } else {
+        return; // No items to navigate
+      }
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault(); // Prevent default scrolling behavior
+          // Move selection down, clamping to the last item
+          this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1);
+          this.updateSelection(items); // Update visual selection
+          break;
+        case 'ArrowUp':
+          e.preventDefault(); // Prevent default scrolling behavior
+          // Move selection up, clamping to the first item (-1 means no selection)
+          this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+          this.updateSelection(items); // Update visual selection
+          break;
+        case 'Enter':
+          e.preventDefault(); // Prevent default form submission/navigation
+          this.selectItem(items); // Select the highlighted item
+          break;
+        case 'Escape':
+          this.close(); // Close the palette
+          break;
+      }
+    }
+
+    private updateSelection(items: NodeListOf<Element>) {
+      items.forEach((item, index) => {
+        // Add highlight class to the selected item, remove from others
+        if (index === this.selectedIndex) {
+          item.classList.add('bg-primary-50', 'dark:bg-primary-800');
+          // Scroll the selected item into view
+          this.scrollIntoView(item);
+        } else {
+          item.classList.remove('bg-primary-50', 'dark:bg-primary-800');
+        }
+      });
+    }
+
+    private scrollIntoView(element: Element) {
+      // Find the scrollable container
+      const scrollContainer = this.results;
+      
+      if (!scrollContainer) return;
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      
+      // Check if element is above the visible area
+      if (elementRect.top < containerRect.top) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
+      // Check if element is below the visible area
+      else if (elementRect.bottom > containerRect.bottom) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'nearest',
+          inline: 'nearest'
+        });
+      }
+    }
+
+    private selectItem(items: NodeListOf<Element>) {
+      // If no item is selected but items exist, select the first one
+      if (this.selectedIndex < 0 && items.length > 0) {
+        this.selectedIndex = 0;
+      }
+      
+      // If an item is selected, navigate to its URL or trigger its action
+      if (this.selectedIndex >= 0 && items[this.selectedIndex]) {
+        const item = items[this.selectedIndex] as HTMLElement;
+        
+        // Check if this is a "change-theme" action - we need to keep palette open for theme selection
+        const isChangeThemeAction = item.tagName === 'BUTTON' && 
+                                    item.hasAttribute('data-action') && 
+                                    item.getAttribute('data-action') === 'change-theme';
+        
+        // Only close the palette if it's not a "change-theme" action
+        if (!isChangeThemeAction) {
+          this.close();
+        }
+        
+        // Ensure scroll is fully restored before navigation
+        setTimeout(() => {
+          if (item.tagName === 'A') {
+            // Handle anchor links (pages, social links)
+            const anchor = item as HTMLAnchorElement;
+            const isExternal = anchor.href.startsWith('http') && !anchor.href.includes(window.location.hostname);
+            
+            if (isExternal) {
+              // For external links, open in new tab
+              window.open(anchor.href, '_blank');
+            } else {
+              // For internal links, use Swup if available, otherwise fallback to regular navigation
+              if ((window as any).swup) {
+                (window as any).swup.navigate(anchor.href);
+              } else {
+                window.location.href = anchor.href;
+              }
+            }
+          } else if (item.tagName === 'BUTTON') {
+            if (item.hasAttribute('data-action')) {
+              // Handle action buttons (like theme toggle)
+              const action = item.getAttribute('data-action');
+              this.executeAction(action!);
+            } else if (item.hasAttribute('data-theme')) {
+              // Handle theme selection buttons
+              const theme = item.getAttribute('data-theme');
+              this.selectTheme(theme!);
+            }
+          }
+        }, 50); // Small delay to ensure cleanup is complete
+      }
+    }
+
+    private executeAction(action: string) {
+      switch (action) {
+        case 'toggle-theme':
+          // Use global theme toggle function instead of clicking button
+          if ((window as any).toggleTheme) {
+            (window as any).toggleTheme();
+          }
+          this.close(); // Close palette after action
+          break;
+        case 'change-theme':
+          // Check if theme switching is available before showing theme selection
+          if ((window as any).isThemeSwitchingAvailable && !(window as any).isThemeSwitchingAvailable()) {
+            console.warn('Theme switching is not available');
+            this.close();
+            return;
+          }
+          // Show theme selection interface
+          this.populateThemeList();
+          this.showThemeSelection();
+          this.selectedIndex = 0; // Select first theme by default so Enter works immediately
+          // Clear the search input and refocus it for keyboard navigation
+          this.input.value = '';
+          this.input.focus();
+          // Update visual selection after a brief delay to ensure DOM is ready
+          setTimeout(() => {
+            const themeButtons = this.themeList.querySelectorAll('button');
+            if (themeButtons.length > 0) {
+              this.updateSelection(themeButtons);
+            }
+          }, 10);
+          break;
+        case 'open-graph':
+          // Open graph modal
+          if ((window as any).openGraphModal) {
+            (window as any).openGraphModal();
+          } else {
+            // Try to initialize GraphModal if it's not available
+            if ((window as any).initializeGraphModal) {
+              (window as any).initializeGraphModal();
+              // Try again after initialization
+              setTimeout(() => {
+                if ((window as any).openGraphModal) {
+                  (window as any).openGraphModal();
+                }
+              }, 100);
+            } else {
+            }
+          }
+          // Close palette after action
+          this.close();
+          break;
+        // Add more actions here as needed
+      }
+    }
+
+    private populateThemeList() {
+      // Check if theme switching is available before showing theme list
+      if ((window as any).isThemeSwitchingAvailable && !(window as any).isThemeSwitchingAvailable()) {
+        this.themeList.innerHTML = '<div class="p-4 text-center text-primary-500 dark:text-primary-400">Theme switching is not available</div>';
+        return;
+      }
+
+      // Available themes from src/themes/index.ts
+      const allThemes = [
+        'minimal', 'oxygen', 'atom', 'ayu', 'catppuccin', 'charcoal', 'dracula', 
+        'everforest', 'flexoki', 'gruvbox', 'macos', 'nord', 'obsidian', 
+        'rose-pine', 'sky', 'solarized', 'things'
+      ];
+
+      // Get current theme using the new preference system
+      let currentTheme = (window as any).siteConfig?.theme || 'oxygen'; // Default to config theme
+      
+      const themePreference = localStorage.getItem('themePreference');
+      
+      if (themePreference === 'default') {
+        // User explicitly chose to follow the site's default theme
+        currentTheme = (window as any).siteConfig?.theme || 'oxygen';
+      } else if (themePreference && themePreference.startsWith('specific:')) {
+        // User chose a specific theme
+        currentTheme = themePreference.replace('specific:', '');
+      } else {
+        // Legacy support: check old selectedTheme key
+        const storedTheme = localStorage.getItem('selectedTheme');
+        if (storedTheme) {
+          currentTheme = storedTheme;
+        } else {
+          // Fallback to current data-theme attribute
+          const dataTheme = document.documentElement.getAttribute('data-theme');
+          if (dataTheme) {
+            currentTheme = dataTheme;
+          }
+        }
+      }
+
+      // Get default theme from config
+      const defaultTheme = (window as any).siteConfig?.theme || 'oxygen';
+      
+      // Only include 'custom' in the list if config theme is set to 'custom'
+      const configTheme = (window as any).siteConfig?.theme;
+      if (configTheme === 'custom') {
+        allThemes.push('custom');
+      }
+      
+      // Get available themes from config
+      const configAvailableThemes = (window as any).siteConfig?.availableThemes || 'default';
+      
+      // Filter themes based on config
+      let filteredThemes;
+      if (configAvailableThemes === 'default') {
+        // Show all built-in themes
+        filteredThemes = allThemes;
+      } else if (Array.isArray(configAvailableThemes)) {
+        // Filter based on availableThemes array
+        filteredThemes = configAvailableThemes.filter(theme => {
+          // Include if it's a built-in theme
+          if (allThemes.includes(theme)) {
+            return true;
+          }
+          // For custom themes, we'll include them and let the theme loading handle validation
+          return true;
+        });
+      } else {
+        // Fallback to all themes
+        filteredThemes = allThemes;
+      }
+      
+      // Always include the selected theme, even if not in availableThemes
+      const selectedTheme = (window as any).siteConfig?.theme;
+      if (selectedTheme && !filteredThemes.includes(selectedTheme)) {
+        filteredThemes.unshift(selectedTheme); // Add to beginning so it appears first
+      }
+      
+      // Reorder themes to put default theme first
+      const themes = [defaultTheme, ...filteredThemes.filter(theme => theme !== defaultTheme)];
+
+      this.themeList.innerHTML = '';
+
+      themes.forEach((theme, index) => {
+        const button = document.createElement('button');
+        const isCurrentTheme = theme === currentTheme;
+        const isDefaultTheme = theme === defaultTheme;
+        
+        button.className = `w-full flex items-center justify-between px-3 py-2 text-left hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group ${isCurrentTheme ? 'bg-primary-50 dark:bg-primary-800' : ''}`;
+        button.dataset.theme = theme;
+        button.dataset.index = index.toString();
+
+        const themeName = (window as any).getThemeDisplayName ? (window as any).getThemeDisplayName(theme) : theme.charAt(0).toUpperCase() + theme.slice(1).replace('-', ' ');
+        const displayName = isDefaultTheme ? `${themeName} (Default)` : themeName;
+        
+        button.innerHTML = `
+          <span class="text-primary-900 dark:text-primary-50">${displayName}</span>
+          ${isCurrentTheme ? '<svg class="w-4 h-4 text-highlight-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' : ''}
+        `;
+
+        button.addEventListener('click', () => {
+          this.selectTheme(theme);
+        });
+
+        this.themeList.appendChild(button);
+      });
+    }
+
+    private async selectTheme(theme: string) {
+      // Apply theme change
+      await this.applyTheme(theme);
+      
+      // Update the theme list to reflect the new selection
+      this.populateThemeList();
+      
+      // Close the palette
+      this.close();
+    }
+
+    private async applyTheme(themeName: string) {
+      // Check if theme switching is available before applying
+      if ((window as any).isThemeSwitchingAvailable && !(window as any).isThemeSwitchingAvailable()) {
+        console.warn('Theme switching is not available - theme change blocked');
+        return;
+      }
+      
+      // Validate theme is available before applying
+      if ((window as any).isThemeAvailable && !(window as any).isThemeAvailable(themeName)) {
+        console.warn('Theme is not available:', themeName);
+        return;
+      }
+      
+      // Use the global changeTheme function from BaseLayout.astro
+      if ((window as any).changeTheme) {
+        await (window as any).changeTheme(themeName);
+      } else {
+        // Fallback if global function is not available
+        const configTheme = (window as any).siteConfig?.theme || 'oxygen';
+        
+        // Store theme preference based on selection
+        if (themeName === configTheme) {
+          // User selected the default theme - store as 'default' preference
+          localStorage.setItem('themePreference', 'default');
+        } else {
+          // User selected a specific theme - store as 'specific:theme-name'
+          localStorage.setItem('themePreference', `specific:${themeName}`);
+        }
+        
+        // Also maintain backward compatibility with selectedTheme for now
+        localStorage.setItem('selectedTheme', themeName);
+        document.documentElement.setAttribute('data-theme', themeName);
+        
+        // Trigger theme change event for other components
+        window.dispatchEvent(new CustomEvent('themechange', { 
+          detail: { theme: themeName } 
+        }));
+      }
+    }
+
+    // Method to set the initial theme based on user preference or system default
+    private setInitialTheme() {
+      // Only set theme if no theme is currently applied
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      if (currentTheme) {
+        // Theme is already applied, don't override it
+        return;
+      }
+      
+      const savedTheme = localStorage.getItem('selectedTheme');
+      
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } else {
+        // Use default theme from config or fallback to oxygen
+        const defaultTheme = (window as any).siteConfig?.theme || 'oxygen';
+        document.documentElement.setAttribute('data-theme', defaultTheme);
+        localStorage.setItem('selectedTheme', defaultTheme);
+      }
+    }
+  }
+
+  // Function to initialize the command palette
+  function initCommandPalette() {
+    // Check if the command palette overlay element exists before initializing
+    if (document.getElementById('command-palette-overlay')) {
+      const instance = new CommandPalette();
+      // Make instance globally accessible for other components
+      (window as any).commandPaletteInstance = instance;
+    }
+  }
+
+  // Initialize when the DOM is fully loaded
+  document.addEventListener('DOMContentLoaded', initCommandPalette);
+</script>

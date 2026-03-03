@@ -1,0 +1,992 @@
+---
+import type { Post } from '@/types';
+import { getCollection } from 'astro:content';
+import { shouldShowPost } from '@/utils/markdown';
+import { siteConfig } from '@/config';
+import Icon from './Icon.astro';
+
+export interface Props {
+  currentSlug?: string;
+}
+
+export interface LocalGraphData {
+  shouldRender: boolean;
+}
+
+const { currentSlug } = Astro.props;
+
+// Get all posts for graph data
+const allPosts = await getCollection('posts');
+const isDev = import.meta.env.DEV;
+const visiblePosts = allPosts.filter(p => shouldShowPost(p, isDev));
+
+// Check if we should show the graph based on connections
+// This component should only be rendered when there are connections (checked in PostLayout)
+// But we'll add an additional client-side check as a safety measure
+const shouldShowGraph = true;
+---
+
+{shouldShowGraph && (
+  <div id="local-graph-container" class="relative w-full bg-primary-50 dark:bg-primary-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-lg backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95 overflow-hidden" style="width: 280px; max-width: 280px; height: 280px;">
+
+    <!-- Icons in top right corner -->
+    <div class="absolute top-3 right-3 z-20 flex items-center gap-2">
+      <!-- Global graph modal button -->
+      <button 
+        id="local-graph-modal-btn"
+        class="p-1 text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 transition-colors pointer-events-auto"
+        title="Global Graph"
+      >
+        <Icon name="git-fork" class="w-4 h-4" />
+      </button>
+      <!-- Fullscreen button -->
+      <button 
+        id="local-graph-fullscreen-btn"
+        class="p-1 text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 transition-colors pointer-events-auto"
+        title="Expand"
+      >
+        <Icon name="arrow-up-right" class="w-4 h-4" />
+      </button>
+    </div>
+    
+    <!-- Graph content -->
+    <div id="local-graph-content" class="w-full h-full">
+      <!-- Graph will be rendered here -->
+    </div>
+  </div>
+)}
+
+<script>
+  import * as d3 from "d3";
+  import { getGraphThemeColors } from '@/utils/graph-theme-colors';
+
+  interface GraphNode {
+    id: string;
+    name: string;
+    slug?: string;
+    radius: number;
+    group?: string;
+    x?: number;
+    y?: number;
+    fx?: number | null;
+    fy?: number | null;
+  }
+
+  interface GraphLink {
+    source: string | GraphNode;
+    target: string | GraphNode;
+    value: number;
+  }
+
+  interface GraphData {
+    nodes: GraphNode[];
+    links: GraphLink[];
+  }
+
+  // Local Graph Functionality
+  let localGraphInitialized = false;
+  let svg: d3.Selection<SVGSVGElement, undefined, null, undefined> | null = null;
+  let simulation: d3.Simulation<any, any> | null = null;
+  let cleanup: (() => void) | null = null;
+  let fullscreenModalOpen = false;
+
+  function getThemeColors() {
+    return getGraphThemeColors();
+  }
+
+  function filterLocalGraphData(data: any, currentSlug: string): GraphData {
+    if (!currentSlug) return { nodes: [], links: [] };
+    
+    const currentNode = data.nodes.find((node: any) => node.id === currentSlug);
+    if (!currentNode) return { nodes: [], links: [] };
+    
+    const directlyConnectedNodeIds = new Set([currentSlug]);
+    data.connections.forEach((conn: any) => {
+      if (conn.source === currentSlug || conn.target === currentSlug) {
+        directlyConnectedNodeIds.add(conn.source);
+        directlyConnectedNodeIds.add(conn.target);
+      }
+    });
+    
+    const relevantNodes = data.nodes.filter((node: any) => directlyConnectedNodeIds.has(node.id));
+    const relevantConnections = data.connections.filter((conn: any) => 
+      directlyConnectedNodeIds.has(conn.source) && directlyConnectedNodeIds.has(conn.target)
+    );
+    
+    return {
+      nodes: relevantNodes.map((node: any) => ({
+        id: node.id,
+        name: node.title || node.name,
+        slug: node.slug,
+        radius: Math.max(3, Math.min(8, (node.connections || 0) + 3)),
+        group: node.type
+      })),
+      links: relevantConnections.map((conn: any) => ({
+        source: conn.source,
+        target: conn.target,
+        value: 1
+      }))
+    };
+  }
+
+  function renderLocalGraph(container: HTMLElement, data: GraphData) {
+    // Clean up existing graph
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+
+    const colors = getThemeColors();
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+    const radiusForce = 100; // Smaller radius for local graph
+
+    const links = data.links.map((d) => ({ ...d }));
+    const nodes = data.nodes.map((d) => ({ ...d }));
+
+    // Create force simulation
+    simulation = d3
+      .forceSimulation<GraphNode>(nodes)
+      .force(
+        "link",
+        d3
+          .forceLink(links)
+          .id((d) => (d as GraphNode).id)
+          .distance(30)
+          .strength(0.2),
+      )
+      .force("charge", d3.forceManyBody().strength(-100))
+      .force(
+        "collide",
+        d3.forceCollide((d) => d.radius + 8),
+      )
+      .force("radial", d3.forceRadial(radiusForce))
+      .force("center", d3.forceCenter(0, 0));
+
+    // Create SVG
+    svg = d3
+      .create("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", [-width / 2, -height / 2, width, height])
+      .attr("style", "max-width: 100%; height: auto;");
+
+    const containerGroup = svg.append("g");
+
+    // Add zoom behavior for panning
+    const zoom = d3.zoom()
+      .scaleExtent([0.2, 6]) // Extended zoom range for more flexibility
+      .on("start", function(event) {
+        // Show grabbing cursor only when starting to pan on empty space
+        if (event.sourceEvent && event.sourceEvent.type === 'mousedown') {
+          const isOnNode = !!(event.sourceEvent.target as Element)?.closest('g');
+          // Only set grabbing if not on a node group (background pan)
+          if (!isOnNode && svg) svg.style('cursor', 'grabbing');
+        }
+      })
+      .on("end", function(event) {
+        // Always restore default cursor when zoom behavior ends
+        if (svg) svg.style('cursor', 'default');
+      })
+      .on("zoom", (event) => {
+        containerGroup.attr("transform", event.transform);
+        
+        // Hide/show labels based on zoom level
+        const scale = event.transform.k;
+        const labelThreshold = 0.8; // Higher threshold for local graph due to smaller size
+        
+        if (scale < labelThreshold) {
+          // Hide all labels when zoomed out
+          labels.style("opacity", 0);
+        } else {
+          // Show all labels when zoomed in
+          labels.style("opacity", 1);
+        }
+      });
+
+    svg.call(zoom as any);
+    if (svg) svg.style('cursor', 'default');
+
+    // Create links
+    const link = containerGroup
+      .append("g")
+      .attr("stroke", colors.linkStroke)
+      .attr("stroke-opacity", 0.3)
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("stroke-width", 1);
+
+    // Create nodes
+    let wasDragged = false;
+    const nodeGroup = containerGroup
+      .append("g")
+      .selectAll("g")
+      .data(nodes)
+      .join("g")
+      .call(
+        d3
+          .drag<SVGGElement, GraphNode>()
+          .on("start", function (event) {
+            wasDragged = false;
+            // Use default cursor when starting to drag node
+            if (svg) svg.style('cursor', 'default');
+            if (!event.active) simulation!.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+          })
+          .on("drag", function (event, d) {
+            wasDragged = true;
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", function (event) {
+            // Restore default cursor when done dragging node
+            if (svg) svg.style('cursor', 'default');
+            if (!event.active) simulation!.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+          }) as any,
+      )
+      .on("click", (event, d) => {
+        if (!wasDragged && d.slug) {
+          // Close any open modals first
+          const modals = document.querySelectorAll('.fixed.inset-0.z-50');
+          modals.forEach(modal => {
+            if (modal.id !== 'command-palette-overlay') {
+              modal.remove();
+            }
+          });
+          document.body.style.overflow = '';
+          
+          // Reset local graph state before navigation
+          resetLocalGraph();
+          
+          const url = `/posts/${d.slug}`;
+          if ((window as any).swup) {
+            (window as any).swup.navigate(url);
+          } else {
+            window.location.href = url;
+          }
+        }
+      });
+
+    // Build neighbor map for hover effects
+    const neighbors = new Map<string, Set<string>>();
+    for (const link of links) {
+      const src = typeof link.source === "object" ? link.source.id : link.source;
+      const tgt = typeof link.target === "object" ? link.target.id : link.target;
+
+      if (!neighbors.has(src)) neighbors.set(src, new Set());
+      if (!neighbors.has(tgt)) neighbors.set(tgt, new Set());
+
+      neighbors.get(src)!.add(tgt);
+      neighbors.get(tgt)!.add(src);
+    }
+
+    // Add hover effects
+    nodeGroup
+      .on("mouseover", function (event, d) {
+        const connected = neighbors.get(d.id) ?? new Set();
+        connected.add(d.id);
+
+        // Bring the hovered node group to the front
+        const element = this as SVGGElement;
+        if (element.parentNode) {
+          element.parentNode.appendChild(element);
+        }
+
+        link
+          .transition()
+          .duration(150)
+          .attr("stroke", (l) =>
+            (typeof l.source === 'object' ? l.source.id : l.source) === d.id || 
+            (typeof l.target === 'object' ? l.target.id : l.target) === d.id
+              ? colors.tagFill
+              : colors.linkStroke,
+          )
+          .attr("stroke-opacity", (l) =>
+            (typeof l.source === 'object' ? l.source.id : l.source) === d.id || 
+            (typeof l.target === 'object' ? l.target.id : l.target) === d.id ? 0.8 : 0.1,
+          );
+
+        nodeGroup
+          .selectAll<SVGCircleElement, GraphNode>("circle")
+          .attr("fill-opacity", (n) => (connected.has(n.id) ? 1 : 0.3))
+          .attr("fill", (n) => {
+            if (n.id === d.id) return colors.tagFill;
+            return colors.linkStroke;
+          });
+
+        // Handle label visibility and sizing based on zoom level
+        const currentTransform = svg ? d3.zoomTransform(svg.node() as Element) : d3.zoomIdentity;
+        const scale = currentTransform.k;
+        const labelThreshold = 0.8;
+        
+        if (scale < labelThreshold) {
+          // When zoomed out, only show the hovered node's label at large size
+          labels
+            .transition()
+            .duration(150)
+            .style("opacity", (n) => (n.id === d.id ? 1 : 0))
+            .style("font-size", (n) => n.id === d.id ? `${12 / scale}px` : "8px")
+            .attr("dy", (n) => n.id === d.id ? `${n.radius + 24}px` : `${n.radius + 12}px`);
+        } else {
+          // When zoomed in, check if we need to enlarge hovered text
+          const minHoverSize = 12; // Minimum size for hovered text (smaller for local graph)
+          const currentTextSize = 8 * scale; // Current effective text size
+          
+          labels
+            .transition()
+            .duration(150)
+            .style("opacity", (n) => {
+              if (n.id === d.id && currentTextSize < minHoverSize) {
+                // Hovered node with enlarged text gets full opacity
+                return 1;
+              } else if (connected.has(n.id)) {
+                // Connected nodes get slightly faded when text is small
+                return currentTextSize < minHoverSize ? 0.6 : 1;
+              } else {
+                // Non-connected nodes get very faded
+                return 0.1;
+              }
+            })
+            .style("font-size", (n) => {
+              if (n.id === d.id && currentTextSize < minHoverSize) {
+                // Hovered node needs larger text
+                return `${minHoverSize / scale}px`;
+              }
+              return "8px";
+            })
+            .attr("dy", (n) => {
+              if (n.id === d.id && currentTextSize < minHoverSize) {
+                // Hovered node with enlarged text needs more spacing
+                return `${n.radius + 24}px`;
+              }
+              return `${n.radius + 12}px`;
+            });
+        }
+      })
+      .on("mouseout", function () {
+        link
+          .transition()
+          .duration(150)
+          .attr("stroke", colors.linkStroke)
+          .attr("stroke-opacity", 0.3);
+
+        nodeGroup
+          .selectAll<SVGCircleElement, GraphNode>("circle")
+          .attr("fill", colors.linkStroke)
+          .attr("fill-opacity", 1);
+
+        // Restore label visibility and sizing based on zoom level
+        const currentTransform = svg ? d3.zoomTransform(svg.node() as Element) : d3.zoomIdentity;
+        const scale = currentTransform.k;
+        const labelThreshold = 0.8;
+        
+        if (scale < labelThreshold) {
+          // When zoomed out, hide all labels and reset font properties
+          labels
+            .transition()
+            .duration(150)
+            .style("opacity", 0)
+            .style("font-size", "8px")
+            .attr("dy", (d) => `${d.radius + 12}px`);
+        } else {
+          // When zoomed in, show all labels with appropriate opacity based on text size
+          const minHoverSize = 12; // Same threshold as hover logic
+          const currentTextSize = 8 * scale; // Current effective text size
+          
+          labels
+            .transition()
+            .duration(150)
+            .style("opacity", currentTextSize < minHoverSize ? 0.6 : 1) // Faded when text is small
+            .style("font-size", "8px")
+            .attr("dy", (d) => `${d.radius + 12}px`);
+        }
+      });
+
+    // Create circles
+    const node = nodeGroup
+      .append("circle")
+      .attr("r", (d) => d.radius)
+      .attr("cursor", "pointer")
+      .attr("fill-opacity", 1)
+      .attr("fill", colors.linkStroke)
+      .attr("data-id", (d) => d.id);
+
+    node.append("title").text((d) => d.name ?? d.id);
+
+    // Create labels
+    const labels = nodeGroup
+      .append("text")
+      .text((d) => d.name ?? d.id)
+      .attr("text-anchor", "middle")
+      .attr("dy", (d) => d.radius + 8)
+      .style("font-size", "8px")
+      .style("fill", colors.postText)
+      .style("pointer-events", "none")
+      .style("opacity", 0.6); // Start with slightly faded labels
+
+    // Run simulation
+    for (let i = 0; i < 200; ++i) simulation.tick();
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y);
+
+      nodeGroup.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+    });
+
+    simulation.alpha(1).restart();
+
+    // Append SVG to container
+    container.appendChild(svg.node()!);
+
+    // Set up cleanup function
+    cleanup = () => {
+      if (simulation) {
+        simulation.stop();
+        simulation = null;
+      }
+      if (svg) {
+        svg.remove();
+        svg = null;
+      }
+    };
+  }
+
+  function initializeLocalGraph() {
+    const container = document.getElementById('local-graph-content');
+    const outerContainer = document.getElementById('local-graph-container');
+    if (!container || !outerContainer) return;
+
+    if (localGraphInitialized) {
+      return;
+    }
+    
+    localGraphInitialized = true;
+    
+    // Ensure GlobalGraph is available for the buttons
+    if (!(window as any).openGraphModal && (window as any).initializeGraphModal) {
+      (window as any).initializeGraphModal();
+    }
+
+    container.innerHTML = `
+      <div class="flex items-center justify-center h-full text-primary-500 dark:text-primary-400">
+        <div class="text-center">
+          <div class="animate-spin w-6 h-6 mx-auto mb-2 opacity-50">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 11-6.219-8.56"/>
+            </svg>
+          </div>
+          <p class="text-xs">Loading graph...</p>
+        </div>
+      </div>
+    `;
+
+    const currentPath = window.location.pathname;
+    let currentSlug = '';
+    
+    // Try multiple patterns to match the current post
+    const patterns = [
+      /\/posts\/([^\/]+)/,           // /posts/slug
+      /\/posts\/([^\/]+)\/$/,        // /posts/slug/
+      /\/posts\/([^\/]+)\/index/,   // /posts/slug/index
+    ];
+    
+    for (const pattern of patterns) {
+      const match = currentPath.match(pattern);
+      if (match) {
+        currentSlug = match[1];
+        break;
+      }
+    }
+    
+    // If no match, try to extract from the last segment
+    if (!currentSlug) {
+      const segments = currentPath.split('/').filter(Boolean);
+      if (segments.length >= 2 && segments[0] === 'posts') {
+        currentSlug = segments[1];
+      }
+    }
+    
+      fetch('/graph/graph-data.json')
+        .then(response => response.json())
+        .then((data) => {
+        
+          const filteredData = filterLocalGraphData(data, currentSlug);
+          
+        (window as any).localGraphData = data; // Store full data
+        (window as any).localGraphFilteredData = filteredData; // Store filtered data
+          
+          // Check if there are actually connections to show
+          if (filteredData.nodes.length <= 1) {
+            // Hide the entire graph container if no connections
+            outerContainer.style.display = 'none';
+            return;
+          }
+          
+          // Show the graph since we have connections
+          outerContainer.style.display = 'block';
+          container.innerHTML = '';
+          renderLocalGraph(container, filteredData);
+          
+          // Track initial dimensions for resize detection
+          lastContainerWidth = container.offsetWidth;
+          lastContainerHeight = container.offsetHeight;
+        })
+        .catch(error => {
+          console.warn('Could not load local graph data:', error);
+          container.innerHTML = `
+            <div class="flex items-center justify-center h-full text-primary-500 dark:text-primary-400">
+              <div class="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mx-auto mb-2 opacity-50">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v4"/>
+                  <path d="M10 21H6a2 2 0 0 1-2-2v-4"/>
+                  <path d="M21 15v4a2 2 0 0 1-2 2h-4"/>
+                  <path d="M3 9V5a2 2 0 0 1 2-2h4"/>
+                  <path d="M9 9h6v6H9z"/>
+                </svg>
+                <p class="text-xs">Graph data not available</p>
+              </div>
+            </div>
+          `;
+        });
+  }
+
+  function setupLocalGraphButtons() {
+    // Proactively ensure GlobalGraph is available
+    if (!(window as any).openGraphModal && (window as any).initializeGraphModal) {
+      (window as any).initializeGraphModal();
+    }
+    
+    // Remove existing listeners to prevent duplicates
+    const modalBtn = document.getElementById('local-graph-modal-btn');
+    if (modalBtn) {
+      modalBtn.replaceWith(modalBtn.cloneNode(true));
+      const newModalBtn = document.getElementById('local-graph-modal-btn');
+      if (newModalBtn) {
+        newModalBtn.addEventListener('click', () => {
+          
+          // Ensure GlobalGraph is available before trying to open it
+          const ensureGlobalGraph = () => {
+            if ((window as any).openGraphModal) {
+              (window as any).openGraphModal();
+              return true;
+            }
+            return false;
+          };
+          
+          if (ensureGlobalGraph()) {
+            return;
+          }
+          
+          if ((window as any).initializeGraphModal) {
+            (window as any).initializeGraphModal();
+            
+            // Try multiple times with increasing delays
+            const attempts = [50, 100, 200, 500];
+            attempts.forEach((delay, index) => {
+              setTimeout(() => {
+                if (ensureGlobalGraph()) {
+                  return;
+                }
+                if (index === attempts.length - 1) {
+                }
+              }, delay);
+            });
+          } else {
+          }
+        });
+      }
+    }
+
+    const fullscreenBtn = document.getElementById('local-graph-fullscreen-btn');
+    if (fullscreenBtn) {
+      fullscreenBtn.replaceWith(fullscreenBtn.cloneNode(true));
+      const newFullscreenBtn = document.getElementById('local-graph-fullscreen-btn');
+      if (newFullscreenBtn) {
+        newFullscreenBtn.addEventListener('click', () => {
+        openLocalGraphFullscreen();
+      });
+    }
+    }
+  }
+
+  function openLocalGraphFullscreen() {
+    if (fullscreenModalOpen) {
+      return;
+    }
+    
+    const existingModal = document.querySelector('.fixed.inset-0.z-50:not(#command-palette-overlay):not(#graph-modal-overlay)');
+    if (existingModal) {
+      existingModal.remove();
+      document.body.style.overflow = '';
+    }
+    
+    fullscreenModalOpen = true;
+    
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-black/50 backdrop-blur-sm animate-fade-in';
+    
+    modal.innerHTML = `
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="relative w-full max-w-6xl h-[80vh] bg-primary-50 dark:bg-primary-800 rounded-xl shadow-2xl border border-primary-200 dark:border-primary-700 animate-scale-in">
+
+          <button 
+            id="local-graph-fullscreen-close"
+            class="absolute top-4 right-4 z-10 p-2 text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 transition-colors rounded-lg hover:bg-primary-100 dark:hover:bg-primary-700"
+            aria-label="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18"/>
+              <path d="M6 6l12 12"/>
+            </svg>
+          </button>
+
+          <div id="local-graph-fullscreen-container" class="w-full h-full bg-primary-50 dark:bg-primary-800 rounded-xl overflow-hidden">
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    const closeBtn = modal.querySelector('#local-graph-fullscreen-close');
+    const closeModal = () => {
+      modal.remove();
+      document.body.style.overflow = '';
+      fullscreenModalOpen = false;
+      
+      // Reinitialize the local graph after closing fullscreen
+      setTimeout(() => {
+        const outerContainer = document.getElementById('local-graph-container');
+        const innerContainer = document.getElementById('local-graph-content');
+        if (outerContainer && innerContainer) {
+          // Clear the container and reinitialize
+          innerContainer.innerHTML = '';
+          localGraphInitialized = false;
+          initializeLocalGraph();
+          setupLocalGraphButtons();
+        }
+      }, 100);
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      const modalContent = modal.querySelector('.relative');
+      if (e.target === modal || !modalContent?.contains(e.target as Node)) {
+        closeModal();
+      }
+    });
+
+    const container = modal.querySelector('#local-graph-fullscreen-container');
+
+    if (container) {
+      const cachedFilteredData = (window as any).localGraphFilteredData;
+      
+      if (cachedFilteredData && cachedFilteredData.nodes.length > 1) {
+        renderLocalGraph(container as HTMLElement, cachedFilteredData);
+      } else {
+        container.innerHTML = `
+          <div class="flex items-center justify-center h-full text-primary-500 dark:text-primary-400">
+            <div class="text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 opacity-50">
+                <path d="M15 3h4a2 2 0 0 1 2 2v4"/>
+                <path d="M10 21H6a2 2 0 0 1-2-2v-4"/>
+                <path d="M21 15v4a2 2 0 0 1-2 2h-4"/>
+                <path d="M3 9V5a2 2 0 0 1 2-2h4"/>
+                <path d="M9 9h6v6H9z"/>
+              </svg>
+              <p class="text-lg font-medium">No connections found</p>
+              <p class="text-sm mt-2">This post doesn't have any connections to other posts</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
+
+  function resetLocalGraph() {
+    const container = document.getElementById('local-graph-content');
+    if (container) {
+      container.innerHTML = '';
+    }
+    localGraphInitialized = false;
+    if (cleanup) {
+      cleanup();
+      cleanup = null;
+    }
+    // Clear any cached data
+    (window as any).localGraphData = null;
+    (window as any).localGraphFilteredData = null;
+    // Reset dimension tracking
+    lastContainerWidth = 0;
+    lastContainerHeight = 0;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeLocalGraph();
+      setupLocalGraphButtons();
+    });
+  } else {
+    initializeLocalGraph();
+    setupLocalGraphButtons();
+  }
+
+  if ((window as any).swup) {
+    (window as any).swup.hooks.on('visit:start', () => {
+      const fullscreenModals = document.querySelectorAll('.fixed.inset-0.z-50:not(#command-palette-overlay):not(#graph-modal-overlay)');
+      fullscreenModals.forEach(modal => {
+        if (modal.id !== 'graph-modal-overlay' && modal.id !== 'command-palette-overlay') {
+          modal.remove();
+        }
+      });
+      document.body.style.overflow = '';
+      fullscreenModalOpen = false;
+    });
+    
+    (window as any).swup.hooks.on('page:view', () => {
+      // Reset and re-initialize local graph after page transition
+      resetLocalGraph();
+      localGraphInitialized = false;
+      
+      // Wait for DOM to be ready and then reinitialize
+      setTimeout(() => {
+        const outerContainer = document.getElementById('local-graph-container');
+        const innerContainer = document.getElementById('local-graph-content');
+        
+        if (outerContainer && innerContainer) {
+          initializeLocalGraph();
+          setupLocalGraphButtons();
+        } else {
+          setTimeout(() => {
+            const retryOuterContainer = document.getElementById('local-graph-container');
+            const retryInnerContainer = document.getElementById('local-graph-content');
+            if (retryOuterContainer && retryInnerContainer) {
+              initializeLocalGraph();
+              setupLocalGraphButtons();
+            } else {
+            }
+          }, 500);
+        }
+      }, 100); // Reduced timeout for faster reinitialization
+    });
+    
+    (window as any).swup.hooks.on('visit:end', () => {
+      // Also reinitialize on visit:end as a backup
+      if (!localGraphInitialized) {
+        setTimeout(() => {
+          const outerContainer = document.getElementById('local-graph-container');
+          const innerContainer = document.getElementById('local-graph-content');
+          if (outerContainer && innerContainer) {
+            initializeLocalGraph();
+            setupLocalGraphButtons();
+          } else {
+          }
+        }, 200);
+      }
+    });
+  }
+
+  // Listen for theme changes to update graph colors
+  window.addEventListener('themechange', () => {
+    // Re-render the graph with new colors
+    const container = document.getElementById('local-graph-content');
+    if (container && localGraphInitialized) {
+      // Get fresh data and re-render
+      fetch('/graph/graph-data.json')
+        .then(response => response.json())
+        .then(data => {
+          const currentPath = window.location.pathname;
+          let currentSlug = '';
+          
+          // Try multiple patterns to match the current post
+          const patterns = [
+            /\/posts\/([^\/]+)/,           // /posts/slug
+            /\/posts\/([^\/]+)\/$/,        // /posts/slug/
+            /\/posts\/([^\/]+)\/index/,   // /posts/slug/index
+          ];
+          
+          for (const pattern of patterns) {
+            const match = currentPath.match(pattern);
+            if (match) {
+              currentSlug = match[1];
+              break;
+            }
+          }
+          
+          const filteredData = filterLocalGraphData(data, currentSlug);
+          renderLocalGraph(container, filteredData);
+        })
+        .catch(error => {
+          console.error('LocalGraph: Error fetching graph data for theme update:', error);
+        });
+    }
+  });
+
+  // Listen for window resize to re-render graph with correct dimensions
+  let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastContainerWidth = 0;
+  let lastContainerHeight = 0;
+
+  function handleResize() {
+    const container = document.getElementById('local-graph-content');
+    const outerContainer = document.getElementById('local-graph-container');
+    if (!container || !outerContainer || !localGraphInitialized) return;
+
+    // Check if container is visible (not hidden by CSS)
+    const containerRect = outerContainer.getBoundingClientRect();
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      // Container is hidden, wait for it to become visible
+      return;
+    }
+
+    const currentWidth = container.offsetWidth;
+    const currentHeight = container.offsetHeight;
+
+    // Only re-render if dimensions actually changed
+    if (currentWidth !== lastContainerWidth || currentHeight !== lastContainerHeight) {
+      lastContainerWidth = currentWidth;
+      lastContainerHeight = currentHeight;
+
+      // Get cached data if available
+      const cachedFilteredData = (window as any).localGraphFilteredData;
+      if (cachedFilteredData && cachedFilteredData.nodes.length > 1) {
+        renderLocalGraph(container, cachedFilteredData);
+      } else {
+        // Fetch fresh data if cache is not available
+        const currentPath = window.location.pathname;
+        let currentSlug = '';
+        
+        const patterns = [
+          /\/posts\/([^\/]+)/,
+          /\/posts\/([^\/]+)\/$/,
+          /\/posts\/([^\/]+)\/index/,
+        ];
+        
+        for (const pattern of patterns) {
+          const match = currentPath.match(pattern);
+          if (match) {
+            currentSlug = match[1];
+            break;
+          }
+        }
+
+        fetch('/graph/graph-data.json')
+          .then(response => response.json())
+          .then(data => {
+            const filteredData = filterLocalGraphData(data, currentSlug);
+            (window as any).localGraphFilteredData = filteredData;
+            if (filteredData.nodes.length > 1) {
+              renderLocalGraph(container, filteredData);
+            }
+          })
+          .catch(error => {
+            console.warn('LocalGraph: Error fetching graph data for resize:', error);
+          });
+      }
+    }
+  }
+
+  // Debounced resize handler
+  function onResize() {
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+    }
+    resizeTimeout = setTimeout(() => {
+      handleResize();
+    }, 150); // 150ms debounce
+  }
+
+  window.addEventListener('resize', onResize);
+
+  // Also listen for orientation changes on mobile
+  window.addEventListener('orientationchange', () => {
+    // Give browser time to update layout after orientation change
+    setTimeout(() => {
+      handleResize();
+    }, 300);
+  });
+
+  // Make functions globally available for BaseLayout integration
+  (window as any).initializeLocalGraph = initializeLocalGraph;
+  (window as any).setupLocalGraphButtons = setupLocalGraphButtons;
+  (window as any).resetLocalGraph = resetLocalGraph;
+  (window as any).openLocalGraphFullscreen = openLocalGraphFullscreen;
+</script>
+
+<style>
+  #local-graph-container {
+    min-height: 280px;
+    height: 280px;
+    width: 280px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  #local-graph-content {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transition: opacity 0.2s ease;
+    contain: layout style paint;
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  @media (max-width: 768px) {
+    #local-graph-container {
+      min-height: 240px;
+      height: 240px;
+      width: 240px;
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scale-in {
+    from { 
+      opacity: 0; 
+      transform: scale(0.95) translateY(-10px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: scale(1) translateY(0); 
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+</style>

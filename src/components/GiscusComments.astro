@@ -1,0 +1,109 @@
+---
+import { siteConfig } from '@/config';
+
+// Only render if comments are enabled
+if (!siteConfig.postOptions.comments.enabled) {
+  return null;
+}
+
+const { comments } = siteConfig.postOptions;
+
+---
+
+<div class="giscus-comments-container">
+  <div 
+    id="giscus-comments" 
+    class="giscus-comments-widget"
+    data-repo={comments.repo}
+    data-repo-id={comments.repoId}
+    data-category={comments.category}
+    data-category-id={comments.categoryId}
+    data-mapping={comments.mapping}
+    data-strict={comments.strict}
+    data-reactions-enabled={comments.reactions}
+    data-emit-metadata={comments.metadata}
+    data-input-position={comments.inputPosition}
+    data-theme={comments.theme}
+    data-lang={comments.lang}
+    data-loading={comments.loading}
+  ></div>
+</div>
+
+<!-- Comments are now handled by BaseLayout -->
+
+<style>
+  .giscus-comments-container {
+    margin-bottom: 2rem;
+    /* Ensure container is outside prose constraints */
+    max-width: 100% !important;
+  }
+
+  .giscus-comments-widget {
+    min-height: 200px;
+    width: 100%;
+    /* Reset any prose styles */
+    max-width: 100% !important;
+  }
+
+  .giscus-comments-widget:empty::before {
+    content: "";
+    display: none;
+  }
+
+  .giscus-comments-widget[data-error]::before {
+    content: "Unable to load comments. Please check your Giscus configuration.";
+    display: block;
+    text-align: center;
+    color: var(--color-primary-400);
+    font-style: italic;
+    padding: 2rem;
+    border: 1px dashed var(--color-primary-300);
+    border-radius: 0.5rem;
+  }
+
+  /* Ensure Giscus iframe renders properly with transparent background */
+  :global(.giscus) {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    background: transparent !important;
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :global(.giscus-frame) {
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    min-height: 400px;
+    display: block !important;
+    background: transparent !important;
+    /* Support transparent themes */
+    color-scheme: light dark;
+    /* Remove all outlines and focus states */
+    outline: none !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Remove focus outline from iframe */
+  :global(.giscus-frame:focus),
+  :global(.giscus-frame:focus-visible),
+  :global(.giscus-frame:active) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure Giscus content is visible and properly styled */
+  :global(.giscus-comments-widget) {
+    width: 100%;
+    max-width: 100% !important;
+  }
+
+  /* Exclude Giscus from prose styling */
+  :global(.prose .giscus-comments-container) {
+    max-width: 100% !important;
+  }
+</style>

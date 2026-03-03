@@ -1,0 +1,192 @@
+---
+import path from "node:path";
+import { Image } from "astro:assets";
+import { devConfig, isDev } from "@/config/dev";
+
+interface Props {
+  id?: string;
+  src: string;
+  class?: string;
+  alt?: string;
+  caption?: string;
+  position?: string;
+  basePath?: string;
+  width?: number;
+  height?: number;
+  format?: "webp" | "avif" | "png" | "jpg" | "jpeg" | "svg";
+  quality?: number;
+  loading?: "lazy" | "eager";
+  decoding?: "async" | "sync" | "auto";
+  fetchpriority?: "high" | "low" | "auto";
+  densities?: number[];
+}
+
+const { 
+  id, 
+  src, 
+  alt = "", 
+  caption,
+  position = "center", 
+  basePath = "/",
+  width = 800,
+  height = 450,
+  format = "webp",
+  quality = 85,
+  loading = "lazy",
+  decoding = "async",
+  fetchpriority = "auto",
+  densities = [1, 2]
+} = Astro.props;
+
+const className = Astro.props.class;
+
+// Clean the src path first - remove Obsidian brackets if present
+let cleanSrc = src;
+if (!cleanSrc) {
+  console.warn('ImageWrapper: src is undefined');
+  cleanSrc = '';
+}
+if (cleanSrc.startsWith('[[') && cleanSrc.endsWith(']]')) {
+  cleanSrc = cleanSrc.slice(2, -2);
+}
+
+// Determine image type using cleaned src
+// For folder-based content, if basePath indicates a synced folder, treat as local for optimization
+// Also treat global attachments directories as synced folders for Astro Image optimization
+const isSyncedFolder = basePath && basePath.includes('/') && (
+  !basePath.endsWith('/attachments/') || 
+  basePath === '/posts/attachments/' || 
+  basePath === '/projects/attachments/' || 
+  basePath === '/docs/attachments/' ||
+  basePath === '/pages/attachments/' ||
+  basePath === '/special/attachments/'
+);
+const isLocal = !(
+  cleanSrc.startsWith("/") ||
+  cleanSrc.startsWith("http") ||
+  cleanSrc.startsWith("https") ||
+  cleanSrc.startsWith("data:")
+) || isSyncedFolder; // Treat synced folders as local for Astro Image optimization
+const isPublic = cleanSrc.startsWith("/") && !isSyncedFolder;
+
+// Dynamic import for local images
+let img: any = null;
+let fallbackSrc: string | null = null;
+let isImageMissing = false;
+
+if (isLocal) {
+  try {
+    const files = import.meta.glob<ImageMetadata>("/public/**", {
+      import: "default",
+    });
+    
+    // Remove leading "./" if present for folder-based posts
+    if (cleanSrc.startsWith('./')) {
+      cleanSrc = cleanSrc.slice(2);
+    }
+    
+    // Remove leading "images/" if present since basePath already includes it
+    // But only for global images, not folder-based images
+    if (cleanSrc.startsWith('images/') && (basePath === '/posts/attachments/' || basePath === '/projects/attachments/' || basePath === '/docs/attachments/' || basePath === '/pages/attachments/' || basePath === '/special/attachments/')) {
+      cleanSrc = cleanSrc.slice(7);
+    }
+    
+    // For folder-based content, if basePath already includes 'images/' and cleanSrc starts with 'images/',
+    // remove the prefix from cleanSrc to avoid double 'images/'
+    if (cleanSrc.startsWith('images/') && basePath.includes('/attachments/') && basePath !== '/posts/attachments/' && basePath !== '/projects/attachments/' && basePath !== '/docs/attachments/' && basePath !== '/pages/attachments/' && basePath !== '/special/attachments/') {
+      cleanSrc = cleanSrc.slice(7);
+    }
+    
+    // For content with attachments/ prefix, remove it since the sync script already handles this
+    if (cleanSrc.startsWith('attachments/') && basePath.includes('/projects/') && !basePath.includes('/attachments/')) {
+      cleanSrc = cleanSrc.slice(12); // Remove 'attachments/' prefix
+    }
+    
+    // For single-file projects, also remove attachments/ prefix when using global attachments directory
+    if (cleanSrc.startsWith('attachments/') && basePath === '/projects/attachments/') {
+      cleanSrc = cleanSrc.slice(12); // Remove 'attachments/' prefix
+    }
+    
+    // Normalize the path for the glob pattern
+    let normalizedPath = path
+      .normalize(path.join("/public", basePath, cleanSrc))
+      .replace(/\\/g, "/");
+    
+    // Ensure the path starts with /public
+    if (!normalizedPath.startsWith("/public")) {
+      normalizedPath = `/public${normalizedPath}`;
+    }
+    
+    // Debug logging
+    if (isDev && devConfig.images.logMissingImages) {
+      // Debug logging removed for production
+    }
+    
+    const file = files[normalizedPath];
+    if (file) {
+      img = await file();
+    } else {
+      isImageMissing = true;
+      // No fallback images - just mark as missing
+    }
+  } catch (error) {
+    isImageMissing = true;
+    // No fallback images - just mark as missing
+  }
+}
+
+const imageClass = "w-full h-full object-cover";
+const imageStyle = `object-position: ${position}`;
+---
+
+<div id={id} class:list={[className, 'overflow-hidden relative']}>
+  {isLocal && img ? (
+    <Image 
+      src={img} 
+      alt={alt} 
+      width={width}
+      height={height}
+      format={format}
+      quality={quality}
+      class={imageClass} 
+      style={imageStyle}
+      loading={loading}
+      decoding={decoding}
+      fetchpriority={fetchpriority}
+      densities={densities}
+    />
+  ) : isPublic ? (
+    <img 
+      src={isSyncedFolder ? `${basePath}${cleanSrc}` : cleanSrc} 
+      alt={alt} 
+      class={imageClass} 
+      style={imageStyle}
+      loading={loading}
+      decoding={decoding}
+      fetchpriority={fetchpriority}
+      width={width}
+      height={height}
+    />
+  ) : isImageMissing ? (
+    // Don't render anything for missing local images
+    null
+  ) : (
+    <img 
+      src={cleanSrc} 
+      alt={alt} 
+      class={imageClass} 
+      style={imageStyle}
+      loading={loading}
+      decoding={decoding}
+      fetchpriority={fetchpriority}
+      width={width}
+      height={height}
+    />
+  )}
+  
+  {caption && (
+    <figcaption class="mt-2 text-sm text-primary-600 dark:text-primary-400 text-center italic">
+      {caption}
+    </figcaption>
+  )}
+</div>

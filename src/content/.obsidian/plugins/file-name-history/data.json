@@ -1,0 +1,23 @@
+{
+  "historyPropertyName": "aliases",
+  "ignoreRegexes": [
+    "^_",
+    "^Untitled$",
+    "^Untitled \\d+$"
+  ],
+  "timeoutSeconds": 5,
+  "caseSensitive": false,
+  "autoCreateFrontmatter": true,
+  "includeFolders": [
+    "posts",
+    "pages",
+    "projects",
+    "docs"
+  ],
+  "excludeFolders": [],
+  "fileExtensions": [
+    "md"
+  ],
+  "trackFolderRenames": "index",
+  "excludePropertyName": ""
+}

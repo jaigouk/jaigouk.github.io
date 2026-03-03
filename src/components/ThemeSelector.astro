@@ -1,0 +1,338 @@
+---
+import { siteConfig, getThemeDisplayName } from '../config';
+import Icon from './Icon.astro';
+---
+
+<!-- Make theme display name utility available to client-side JavaScript -->
+<script define:vars={{ getThemeDisplayName }}>
+  // Make theme display name utility available globally
+  window.getThemeDisplayName = getThemeDisplayName;
+</script>
+
+<!-- Theme Selector Modal Overlay -->
+<div 
+  id="theme-selector-overlay" 
+  class="fixed inset-0 z-50 hidden bg-black/50 backdrop-blur-sm animate-fade-in"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="theme-selector-title"
+>
+  <div class="flex min-h-full items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white dark:bg-primary-900 rounded-xl shadow-2xl border border-primary-200 dark:border-primary-700 animate-scale-in">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-primary-200 dark:border-primary-700">
+        <h2 id="theme-selector-title" class="text-lg font-semibold text-primary-900 dark:text-primary-50">
+          Choose Theme
+        </h2>
+        <button 
+          id="theme-selector-close"
+          class="p-1 text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 transition-colors"
+          aria-label="Close theme selector"
+        >
+          <Icon name="x" class="w-5 h-5" />
+        </button>
+      </div>
+
+      <!-- Theme List -->
+      <div class="p-4">
+        <div id="theme-selector-list" class="space-y-2 max-h-80 overflow-y-auto theme-selector-scroll">
+          <!-- Theme list will be populated here -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .theme-selector-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-primary-300)) transparent;
+  }
+  
+  .theme-selector-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .theme-selector-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .theme-selector-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-primary-300));
+    border-radius: 3px;
+  }
+  
+  .theme-selector-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-primary-400));
+  }
+  
+  .dark .theme-selector-scroll {
+    scrollbar-color: rgb(var(--color-primary-600)) transparent;
+  }
+  
+  .dark .theme-selector-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-primary-600));
+  }
+  
+  .dark .theme-selector-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-primary-500));
+  }
+</style>
+
+<script>
+  class ThemeSelector {
+    private overlay: HTMLElement;
+    private themeList: HTMLElement;
+    private selectedIndex: number = -1;
+
+    constructor() {
+      this.overlay = document.getElementById('theme-selector-overlay')!;
+      this.themeList = document.getElementById('theme-selector-list')!;
+      this.init();
+    }
+
+    private init() {
+      // Add event listener to close the modal when the close button is clicked
+      const closeButton = document.getElementById('theme-selector-close');
+      if (closeButton) {
+        closeButton.addEventListener('click', () => this.close());
+      }
+      
+      // Add event listener to close the modal if clicked outside
+      this.overlay.addEventListener('click', (e) => {
+        if (e.target === this.overlay) {
+          this.close();
+        }
+      });
+
+      // Add keyboard navigation
+      this.overlay.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+      // Populate theme list
+      this.populateThemeList();
+    }
+
+    private handleKeyDown(e: KeyboardEvent) {
+      switch (e.key) {
+        case 'Escape':
+          this.close();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          this.navigateDown();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          this.navigateUp();
+          break;
+        case 'Enter':
+          e.preventDefault();
+          this.selectCurrentTheme();
+          break;
+      }
+    }
+
+    private navigateDown() {
+      const themes = this.themeList.querySelectorAll('button[data-theme]');
+      if (themes.length === 0) return;
+      
+      this.selectedIndex = Math.min(this.selectedIndex + 1, themes.length - 1);
+      this.updateSelection(themes);
+      this.scrollToSelected(themes);
+    }
+
+    private navigateUp() {
+      const themes = this.themeList.querySelectorAll('button[data-theme]');
+      if (themes.length === 0) return;
+      
+      this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+      this.updateSelection(themes);
+      this.scrollToSelected(themes);
+    }
+
+    private updateSelection(themes: NodeListOf<Element>) {
+      themes.forEach((theme, index) => {
+        if (index === this.selectedIndex) {
+          theme.classList.add('bg-primary-50', 'dark:bg-primary-800');
+        } else {
+          theme.classList.remove('bg-primary-50', 'dark:bg-primary-800');
+        }
+      });
+    }
+
+    private scrollToSelected(themes: NodeListOf<Element>) {
+      if (this.selectedIndex >= 0 && themes[this.selectedIndex]) {
+        const selectedTheme = themes[this.selectedIndex] as HTMLElement;
+        selectedTheme.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }
+
+    private selectCurrentTheme() {
+      const themes = this.themeList.querySelectorAll('button[data-theme]');
+      if (this.selectedIndex >= 0 && themes[this.selectedIndex]) {
+        const themeButton = themes[this.selectedIndex] as HTMLElement;
+        const theme = themeButton.getAttribute('data-theme');
+        if (theme) {
+          this.selectTheme(theme);
+        }
+      }
+    }
+
+    public open() {
+      this.overlay.classList.remove('hidden');
+      this.selectedIndex = -1;
+      this.populateThemeList();
+      
+      // Focus the first theme button and scroll to current theme after a brief delay
+      setTimeout(() => {
+        const themes = this.themeList.querySelectorAll('button[data-theme]');
+        
+        // Find current theme and scroll to it
+        const currentTheme = localStorage.getItem('selectedTheme') || document.documentElement.getAttribute('data-theme');
+        if (currentTheme) {
+          const currentThemeButton = Array.from(themes).find(btn => btn.getAttribute('data-theme') === currentTheme);
+          if (currentThemeButton) {
+            currentThemeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }
+        
+        // Focus the first theme button
+        const firstTheme = themes[0] as HTMLElement;
+        if (firstTheme) {
+          firstTheme.focus();
+        }
+      }, 100);
+    }
+
+    public close() {
+      this.overlay.classList.add('hidden');
+    }
+
+    private populateThemeList() {
+      // Available themes from src/themes/index.ts
+      const allThemes = [
+        'minimal', 'oxygen', 'atom', 'ayu', 'catppuccin', 'charcoal', 'dracula', 
+        'everforest', 'flexoki', 'gruvbox', 'macos', 'nord', 'obsidian', 
+        'rose-pine', 'sky', 'solarized', 'things'
+      ];
+
+      // Get current theme from localStorage, data-theme attribute, or config
+      let currentTheme = localStorage.getItem('selectedTheme');
+      
+      // If no stored theme, check the current data-theme attribute
+      if (!currentTheme) {
+        currentTheme = document.documentElement.getAttribute('data-theme');
+      }
+      
+      // If still no theme, use config default
+      if (!currentTheme) {
+        currentTheme = (window as any).siteConfig?.theme || 'oxygen';
+      }
+
+      // Get default theme from config
+      const defaultTheme = (window as any).siteConfig?.theme || 'oxygen';
+      
+      // Only include 'custom' in the list if config theme is set to 'custom'
+      const configTheme = (window as any).siteConfig?.theme;
+      if (configTheme === 'custom') {
+        allThemes.push('custom');
+      }
+      
+      // Get available themes from config
+      const configAvailableThemes = (window as any).siteConfig?.availableThemes || 'default';
+      
+      // Filter themes based on config
+      let filteredThemes;
+      if (configAvailableThemes === 'default') {
+        // Show all built-in themes
+        filteredThemes = allThemes;
+      } else if (Array.isArray(configAvailableThemes)) {
+        // Filter based on availableThemes array
+        filteredThemes = configAvailableThemes.filter(theme => {
+          // Include if it's a built-in theme
+          if (allThemes.includes(theme)) {
+            return true;
+          }
+          // For custom themes, we'll include them and let the theme loading handle validation
+          return true;
+        });
+      } else {
+        // Fallback to all themes
+        filteredThemes = allThemes;
+      }
+      
+      // Always include the selected theme, even if not in availableThemes
+      const selectedTheme = (window as any).siteConfig?.theme;
+      if (selectedTheme && !filteredThemes.includes(selectedTheme)) {
+        filteredThemes.unshift(selectedTheme); // Add to beginning so it appears first
+      }
+      
+      // Reorder themes to put default theme first
+      const themes = [defaultTheme, ...filteredThemes.filter(theme => theme !== defaultTheme)];
+
+      this.themeList.innerHTML = '';
+
+      themes.forEach((theme, index) => {
+        const button = document.createElement('button');
+        const isCurrentTheme = theme === currentTheme;
+        const isDefaultTheme = theme === defaultTheme;
+        
+        button.className = `w-full flex items-center justify-between px-3 py-2 text-left hover:bg-primary-50 dark:hover:bg-primary-800 rounded-lg transition-colors group`;
+        button.dataset.theme = theme;
+        button.dataset.index = index.toString();
+
+        const themeName = (window as any).getThemeDisplayName ? (window as any).getThemeDisplayName(theme) : theme.charAt(0).toUpperCase() + theme.slice(1).replace('-', ' ');
+        const displayName = isDefaultTheme ? `${themeName} (Default)` : themeName;
+        
+        button.innerHTML = `
+          <span class="text-primary-900 dark:text-primary-50">${displayName}</span>
+          ${isCurrentTheme ? '<svg class="w-4 h-4 text-highlight-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' : ''}
+        `;
+
+        button.addEventListener('click', () => {
+          this.selectTheme(theme);
+        });
+
+        this.themeList.appendChild(button);
+      });
+    }
+
+    private async selectTheme(theme: string) {
+      // Apply theme change using the global function
+      if ((window as any).changeTheme) {
+        await (window as any).changeTheme(theme);
+      } else {
+        // Fallback if global function is not available
+        localStorage.setItem('selectedTheme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Trigger theme change event for other components
+        window.dispatchEvent(new CustomEvent('themechange', { 
+          detail: { theme: theme } 
+        }));
+      }
+      
+      // Update the theme list to reflect the new selection
+      this.populateThemeList();
+      
+      // Close the modal
+      this.close();
+    }
+  }
+
+  // Function to initialize the theme selector
+  function initThemeSelector() {
+    // Check if the theme selector overlay element exists before initializing
+    if (document.getElementById('theme-selector-overlay')) {
+      const instance = new ThemeSelector();
+      // Make instance globally accessible for other components
+      (window as any).themeSelectorInstance = instance;
+    }
+  }
+
+  // Initialize when the DOM is fully loaded
+  document.addEventListener('DOMContentLoaded', initThemeSelector);
+</script>

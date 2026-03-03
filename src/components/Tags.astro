@@ -1,0 +1,116 @@
+---
+import { siteConfig } from '@/config';
+import Icon from './Icon.astro';
+
+export interface Props {
+  tags: string[];
+  currentTag?: string;
+  showCount?: boolean;
+  variant?: 'default' | 'outline' | 'minimal';
+}
+
+const { tags, currentTag, showCount = false, variant = 'default' } = Astro.props;
+
+// Sort tags alphabetically
+const sortedTags = [...tags].sort();
+---
+
+{siteConfig.postOptions.tags && sortedTags.length > 0 && (
+  <div class="tags-container p-4 bg-white dark:bg-primary-900 rounded-xl border border-primary-200 dark:border-primary-700 shadow-lg backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
+    <h3 class="font-semibold text-primary-900 dark:text-primary-50 mb-3 flex items-center text-sm">
+      <Icon name="tag" class="w-4 h-4 mr-2" />
+      Tags
+    </h3>
+
+    <div class="flex flex-wrap gap-2">
+      {sortedTags.map(tag => (
+        <a
+          href={`/posts/tag/${encodeURIComponent(tag)}`}
+          class={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+            currentTag === tag
+              ? 'bg-highlight-100 dark:bg-highlight-900/40 text-highlight-800 dark:text-highlight-200 ring-1 ring-highlight-300 dark:ring-highlight-700'
+              : 'bg-primary-100 dark:bg-primary-800 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-700 hover:text-primary-800 dark:hover:text-primary-200'
+          }`}
+        >
+          <span class="tag-text">{tag}</span>
+          {showCount && (
+            <span class="tag-count">
+              {/* This would be populated by JavaScript or server-side logic */}
+            </span>
+          )}
+        </a>
+      ))}
+    </div>
+  </div>
+)}
+
+<style>
+
+  .tag-item {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200;
+  }
+
+  .tag-default {
+    @apply bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200 hover:bg-primary-200 dark:hover:bg-primary-700 hover:text-primary-900 dark:hover:text-primary-100;
+  }
+
+  .tag-outline {
+    @apply border border-primary-300 dark:border-primary-600 text-primary-600 dark:text-primary-300 hover:border-highlight-500 hover:text-highlight-600 dark:hover:text-highlight-400 hover:bg-highlight-50 dark:hover:bg-highlight-900/20;
+  }
+
+  .tag-minimal {
+    @apply text-primary-600 dark:text-primary-300 hover:text-highlight-600 dark:hover:text-highlight-400 hover:bg-primary-100 dark:hover:bg-primary-800;
+  }
+
+  .tag-active {
+    @apply bg-highlight-600 text-white shadow-lg;
+  }
+
+  .tag-active:hover {
+    @apply bg-highlight-700;
+  }
+
+  .tag-count {
+    @apply text-xs opacity-75 bg-white/20 px-1.5 py-0.5 rounded-full;
+  }
+
+  .tag-item:hover {
+    @apply transform scale-105 shadow-md;
+  }
+
+  .tag-text {
+    @apply truncate max-w-32;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .tag-item {
+      @apply text-xs px-2 py-1;
+    }
+
+    .tag-text {
+      @apply max-w-24;
+    }
+  }
+</style>
+
+<script>
+  // Add interactive functionality for tags
+  document.addEventListener('DOMContentLoaded', () => {
+    const tagItems = document.querySelectorAll('.tag-item');
+
+    // Add click analytics or other interactive features
+    tagItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const tag = item.getAttribute('data-tag');
+
+        // Dispatch custom event for analytics
+        if (tag) {
+          window.dispatchEvent(new CustomEvent('tagClicked', {
+            detail: { tag }
+          }));
+        }
+      });
+    });
+  });
+</script>
