@@ -43,7 +43,9 @@ const paletteIcon = allSectionsDisabled ? 'search' : 'command';
               class={getHeaderProfilePictureClasses(profilePicture.style)}
             />
           ) : (
-            <span class="font-semibold text-primary-900 dark:text-primary-50">
+            <span class="flex items-center gap-2 font-semibold text-primary-900 dark:text-primary-50">
+              <img src="/favicon.png" alt="" class="w-9 h-9 block dark:hidden" />
+              <img src="/favicon-dark.png" alt="" class="w-9 h-9 hidden dark:block" />
               {siteConfig.title}
             </span>
           )}
