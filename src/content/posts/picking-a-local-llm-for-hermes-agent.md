@@ -76,15 +76,19 @@ The means are within one standard deviation of each other compared to Gemma 4 (8
 
 With the model chosen, configuration was straightforward.
 
-The llama.cpp service needs 65K context because Hermes Agent's system prompt with ~108 MCP tools plus ~60 built-in tools consumes roughly 35K tokens for the tool definitions alone:
+Hermes Agent's system prompt with ~120 MCP tools plus ~36 built-in tools consumes roughly 26K tokens for tool definitions alone. I initially ran at 65K context, but multi-tool tasks (web searches + doc reads) overflowed within a single turn. The fix was twofold: 128K context with Q8_0 KV cache quantization, and per-platform tool filtering for Telegram.
+
+The hybrid DeltaNet architecture is key here — only 10 of 40 layers maintain a KV cache, so 128K context with Q8_0 uses the same VRAM as 65K with FP16. Just 58 MB more in practice:
 
 ```yaml
 # systemd unit
 ExecStart=llama-server \
     --model Qwen3.6-35B-A3B-UD-IQ4_XS.gguf \
     --port 7099 \
-    --ctx-size 65536 \
+    --ctx-size 131072 \
     --n-gpu-layers -1 \
+    --cache-type-k q8_0 \
+    --cache-type-v q8_0 \
     --jinja
 ```
 
@@ -96,8 +100,10 @@ model:
   default: Qwen3.6-35B-A3B-UD-IQ4_XS.gguf
   provider: custom
   base_url: http://localhost:7099/v1
-  context_length: 65536
+  context_length: 131072
 ```
+
+For Telegram, I also configured `platform_toolsets` to load only essential MCP servers (gpumod, outline, tavily), dropping from 157 to 87 tools. This brought first-turn token usage from 49.6% down to 20% of context:
 
 gpumod manages the mode so both services start together:
 
@@ -118,6 +124,6 @@ One command to switch: `gpumod switch hermes-agent`.
 
 **Benchmark before you commit.** Gemma 4 looked like the safe choice at 16 GB, but the MoE model beats it on quality and speed while only needing 5 GB more. Without benchmarking, I would have picked the wrong model.
 
-**Tool count matters for context.** ~170 tools (MCP + built-in) in a system prompt is 35K tokens before the user says anything. This is the real constraint on context size, not conversation length. Plan your context budget around your tool surface area.
+**Tool count matters for context.** 157 tools in a system prompt consumed 49.6% of 65K context before the user said anything. The fix was two-pronged: double the context to 128K with Q8_0 KV cache (VRAM-neutral on the hybrid architecture), and filter tools per platform so Telegram only loads what it needs. Plan your context budget around your tool surface area, not conversation length.
 
 The full benchmark results and methodology are on the [benchmark results page](https://jaigouk.com/gpumod/benchmarks/20260423_qwen36_gemma4_comparison/), with raw data and scripts in the [GitHub repository](https://github.com/jaigouk/gpumod/tree/main/docs/benchmarks/20260423_qwen36_gemma4_comparison).
