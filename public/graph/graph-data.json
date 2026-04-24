@@ -64,6 +64,13 @@
       "connections": 0
     },
     {
+      "id": "launch-claude-team",
+      "type": "post",
+      "title": "Launching Claude Team with tmux",
+      "slug": "launch-claude-team",
+      "connections": 0
+    },
+    {
       "id": "map-to-future",
       "type": "post",
       "title": "Map to the future",
@@ -89,6 +96,13 @@
       "type": "post",
       "title": "OpenFaaS on Tinker board Cluster",
       "slug": "openfaas-on-tinkerboard-cluster",
+      "connections": 0
+    },
+    {
+      "id": "picking-a-local-llm-for-hermes-agent",
+      "type": "post",
+      "title": "Picking a Local LLM for Hermes Agent with gpumod",
+      "slug": "picking-a-local-llm-for-hermes-agent",
       "connections": 0
     },
     {
@@ -143,9 +157,9 @@
   ],
   "connections": [],
   "metadata": {
-    "totalPosts": 20,
+    "totalPosts": 22,
     "totalConnections": 0,
     "maxNodesApplied": false,
-    "originalNodeCount": 20
+    "originalNodeCount": 22
   }
 }

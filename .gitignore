@@ -33,3 +33,4 @@ src/content/.trash/
 # Local tools
 .beads/
 .config/
+.playwright-mcp/
