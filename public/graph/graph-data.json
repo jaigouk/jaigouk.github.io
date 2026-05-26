@@ -36,6 +36,13 @@
       "connections": 0
     },
     {
+      "id": "gpumod-mode-switch-freezes-and-qwen36-mtp",
+      "type": "post",
+      "title": "gpumod Mode Switches, Driver Hangs, and Landing on Qwen3.6 MTP for Hermes",
+      "slug": "gpumod-mode-switch-freezes-and-qwen36-mtp",
+      "connections": 1
+    },
+    {
       "id": "grpc",
       "type": "post",
       "title": "grpc",
@@ -155,11 +162,17 @@
       "connections": 0
     }
   ],
-  "connections": [],
+  "connections": [
+    {
+      "source": "gpumod-mode-switch-freezes-and-qwen36-mtp",
+      "target": "picking-a-local-llm-for-hermes-agent",
+      "type": "link"
+    }
+  ],
   "metadata": {
-    "totalPosts": 22,
-    "totalConnections": 0,
+    "totalPosts": 23,
+    "totalConnections": 1,
     "maxNodesApplied": false,
-    "originalNodeCount": 22
+    "originalNodeCount": 23
   }
 }
